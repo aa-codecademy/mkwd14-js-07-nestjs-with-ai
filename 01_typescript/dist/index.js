@@ -4,5 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const _01_primitives_1 = __importDefault(require("./01-primitives"));
+// Entry file for the first TypeScript class.
+// We call one demo function here and can swap this import later
+// to run the other lesson files during class.
 (0, _01_primitives_1.default)();
 //# sourceMappingURL=index.js.map
