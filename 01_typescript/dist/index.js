@@ -1,20 +1,8 @@
 "use strict";
-// Basic types
-// String
-let title = 'Hello World, welcome to TypeScript learning';
-// title = 20
-title = typeof 20 === 'number' ? '20' : '';
-// Symbol
-const tag = Symbol('userId');
-// Number
-let count = 52;
-// count = 'jdasdas'
-let bigNumber = 9007199254740993n;
-// Boolean
-let isActive = false;
-// isActive = 'dasda'
-// Null
-let nothing = null;
-// Undefined
-let missing = undefined;
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const _01_primitives_1 = __importDefault(require("./01-primitives"));
+(0, _01_primitives_1.default)();
 //# sourceMappingURL=index.js.map
