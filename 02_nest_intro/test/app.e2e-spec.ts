@@ -1,3 +1,7 @@
+/**
+ * End-to-end test: boots the real `AppModule` and hits HTTP routes with supertest.
+ * This verifies the full request pipeline (routing → controller → service), not isolated units.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
