@@ -95,6 +95,10 @@ NestJS is heavily TypeScript-first:
 - `src/06-classes.ts` - classes, modifiers, abstract classes, static members
 - `src/index.ts` - lesson entry point
 
+## Useful links
+
+- https://www.typescriptlang.org/docs/handbook/decorators.html
+
 ## Run the examples
 
 From this folder:
