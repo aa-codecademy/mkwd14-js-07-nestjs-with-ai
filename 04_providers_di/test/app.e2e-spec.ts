@@ -1,3 +1,7 @@
+/**
+ * Smoke test against the running Nest app: hits real HTTP routes through the default adapter.
+ * Root `/` redirects — assert `/health` which matches `AppController`.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -16,11 +20,14 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/health (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect((res) => {
+        expect(res.body.status).toBe('ok');
+        expect(typeof res.body.uptime).toBe('number');
+      });
   });
 
   afterEach(async () => {

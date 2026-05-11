@@ -1,3 +1,4 @@
+/** Boots Nest from `AppModule` — same pattern as earlier modules. */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 

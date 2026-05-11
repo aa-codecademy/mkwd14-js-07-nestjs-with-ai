@@ -1,97 +1,115 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NestJS — controllers & routes (SEDC)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This module builds on [`02_nest_intro`](../02_nest_intro/README.md): same Nest bootstrap, but the focus is **HTTP routing**, **status codes**, **query strings**, **redirects**, and a small **REST-style** API for artists (in-memory list on the controller for teaching).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Read the theory below, then trace the comments in `src/` while calling endpoints with a REST client or browser.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Working inside the course repo (avoid nested Git)
+
+If this folder contains its own **`.git`** directory (for example after copying the exercise), Git may treat it as a **nested repository**. That causes confusing commits and status inside the main course repo.
+
+**Recommended:** remove the nested Git metadata so only the course root is one repo:
+
+```bash
+# From inside 03_controllers_routes
+rm -rf .git
+```
+
+Use `git` from the **course repository root**. Verify with `git rev-parse --show-toplevel`.
+
+---
+
+## Theory: controllers and routing
+
+### Controllers
+
+A **controller** class is decorated with `@Controller('optional-prefix')`. Each method uses an HTTP decorator (`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`) and an optional path segment. The full path is **prefix + method path**.
+
+Handlers should stay small: parse input, call logic, return a value (Nest serializes objects as JSON). Throw Nest HTTP exceptions (`NotFoundException`, etc.) to send proper status codes and bodies.
+
+### Route parameters and query strings
+
+- **`@Param('id')`** reads `/artist/:id` — values arrive as **strings**; convert when comparing to numbers.
+- **`@Query('genre')`** reads `?genre=Rock` — optional queries may be `undefined`; validate before use.
+
+### Route order matters
+
+Static segments should usually be declared **before** dynamic ones. Example: `@Get('search')` must appear **before** `@Get(':id')`. Otherwise a request to `/artist/search` can be matched by `:id` with `id === 'search'`.
+
+### HTTP verbs (REST-style)
+
+| Verb | Typical use |
+|------|----------------|
+| GET | Read one or many resources |
+| POST | Create (often returns the created entity or 201) |
+| PUT | Replace an entire resource |
+| PATCH | Partial update |
+| DELETE | Remove |
+
+`@HttpCode(HttpStatus.NO_CONTENT)` sets **204** when you intentionally send no body (common for DELETE).
+
+### Redirects and metadata
+
+- **`@Redirect(url, statusCode)`** sends a redirect (e.g. 302). Useful for shortcuts like `/` → `/health` or linking out to docs.
+- **`@Headers('header-name')`** and **`@Ip()`** extract request metadata for debugging or logging endpoints.
+
+### What this project demonstrates
+
+| Area | Where |
+|------|--------|
+| Redirects, health, headers | `src/app.controller.ts` |
+| CRUD + query search + 404s | `src/artist/artist.controller.ts` |
+| Registering two controllers | `src/app.module.ts` |
+
+---
 
 ## Project setup
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+## Run
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev
 ```
 
-## Run tests
+Default base URL: `http://localhost:3000`.
+
+### Quick reference — useful paths
+
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/` | Redirects to `/health` |
+| GET | `/health` | JSON health payload |
+| GET | `/docs` | Redirects to Nest docs |
+| GET | `/request-info` | User-Agent + IP |
+| GET | `/artist` | List artists |
+| GET | `/artist/search?genre=Rock` | Filter by genre |
+| GET | `/artist/:id` | One artist or 404 |
+| POST | `/artist` | Create (JSON body) |
+| PUT | `/artist/:id` | Full replace |
+| PATCH | `/artist/:id` | Partial update |
+| DELETE | `/artist/:id` | 204 No Content |
+
+---
+
+## Tests
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run test
+npm run test:e2e
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Further reading
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- [Controllers | NestJS](https://docs.nestjs.com/controllers)
+- [HTTP exceptions | NestJS](https://docs.nestjs.com/exception-filters)
 
 ## License
 

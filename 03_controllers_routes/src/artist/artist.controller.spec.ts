@@ -1,3 +1,4 @@
+/** Unit test scaffold: instantiates the controller with Nest’s testing module (no real HTTP server). */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ArtistController } from './artist.controller';
 

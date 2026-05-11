@@ -1,3 +1,6 @@
+/**
+ * Application entry point: builds the Nest application from the root `AppModule`.
+ */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 

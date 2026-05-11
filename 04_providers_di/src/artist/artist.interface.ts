@@ -1,3 +1,4 @@
+/** Shared domain shapes — interfaces compile away; use classes + decorators when you need runtime validation. */
 export interface Artist {
   id: number;
   name: string;

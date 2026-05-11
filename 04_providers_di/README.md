@@ -1,97 +1,97 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NestJS — providers & dependency injection (SEDC)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This module continues the **artist** HTTP API from [`03_controllers_routes`](../03_controllers_routes/README.md), but moves **data and rules** into an **`ArtistService`** registered as a **provider**. The controller becomes thin: it only maps HTTP to service calls.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+You will also see a **custom provider**: an injectable **ID generator** token implemented with `useFactory`.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Working inside the course repo (avoid nested Git)
 
-## Project setup
+If **`04_providers_di/.git`** exists, delete it so you do not nest one Git repository inside the main course repo:
 
 ```bash
-$ npm install
+cd 04_providers_di
+rm -rf .git
 ```
 
-## Compile and run the project
+Commit and push from the **repository root** only.
+
+---
+
+## Theory: providers and dependency injection
+
+### What is a provider?
+
+In Nest, a **provider** is usually a class marked `@Injectable()` that can be **injected** into controllers or other providers. You list providers in `@Module({ providers: [...] })`. By default Nest creates **one shared instance** per provider (singleton scope in the module).
+
+### Constructor injection
+
+```text
+Controller → constructor(private readonly artistsService: ArtistService)
+```
+
+Nest resolves `ArtistService` because it is registered in the same module’s `providers`. No manual `new ArtistService()` in application code.
+
+### Custom providers (tokens)
+
+Sometimes the dependency is not a class type — for example a **function** or **configuration**. Nest lets you bind an injection **token** (often a `Symbol`) to a value or factory:
+
+- **`provide`** — the token injectors use (`@Inject(MY_TOKEN)`).
+- **`useFactory`** — a function Nest runs to build the value (can depend on other providers later in more advanced setups).
+
+This sample uses a factory that returns a **function** generating numeric IDs (`Date.now()`), so `ArtistService` stays testable and does not hard-code ID creation.
+
+### Interfaces and TypeScript
+
+`Artist` shapes live in **`artist.interface.ts`**. Interfaces are erased at compile time; Nest injection uses runtime tokens (`Symbol`) or classes. **`@Injectable()`** applies to classes, not interfaces.
+
+### Layering
+
+| Layer | Responsibility |
+|-------|------------------|
+| Controller | HTTP mapping, status codes, delegating to services |
+| Service | Business rules, in-memory or future persistence |
+| Module | Wiring controllers + providers + exports |
+
+---
+
+## Project layout (guide)
+
+| File | Role |
+|------|------|
+| `src/app.module.ts` | Registers `ArtistService`, custom `ARTIST_ID_GENERATOR`, controllers |
+| `src/artist/artist.controller.ts` | Routes only — calls `ArtistService` |
+| `src/artist/artist.service.ts` | In-memory store + `NotFoundException` |
+| `src/artist/artist.interface.ts` | Shared TypeScript types |
+| `src/common/providers/id-generator.ts` | Token + type for ID generator |
+
+---
+
+## Setup and run
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
+npm run start:dev
 ```
 
-## Run tests
+Postman: see `SEDC_2026_Nest.postman_collection.json` if present.
+
+---
+
+## Tests
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run test
+npm run test:e2e
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Further reading
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- [Providers | NestJS](https://docs.nestjs.com/providers)
+- [Custom providers | NestJS](https://docs.nestjs.com/fundamentals/custom-providers)
 
 ## License
 

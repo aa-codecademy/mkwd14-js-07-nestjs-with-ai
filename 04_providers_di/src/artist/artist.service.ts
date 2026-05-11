@@ -1,3 +1,9 @@
+/**
+ * Domain logic for artists: in-memory storage for learning (replace with a database later).
+ *
+ * `@Inject(ARTIST_ID_GENERATOR)` receives the factory-created ID function from `AppModule`
+ * instead of hard-coding `Date.now()` here — easier to mock in tests or swap strategies.
+ */
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   Artist,
@@ -41,13 +47,16 @@ export class ArtistService {
   ];
 
   constructor(
+    /** Callable injected via `useFactory` — returns the next numeric id when creating rows. */
     @Inject(ARTIST_ID_GENERATOR) private readonly newId: ArtistIdGenerator,
   ) {}
 
+  /** Snapshot of every stored artist (no pagination in this demo). */
   getAllArtists(): Artist[] {
     return this.artists;
   }
 
+  /** Case-insensitive genre filter; empty string → behave like “no filter”. */
   search(genre: string): Artist[] {
     if (!genre) {
       return this.artists;
@@ -57,6 +66,7 @@ export class ArtistService {
     );
   }
 
+  /** Throws Nest `NotFoundException` → HTTP 404 via the default exception layer. */
   getArtistById(id: string): Artist {
     const artist = this.artists.find((artist) => artist.id === Number(id));
 
@@ -67,6 +77,7 @@ export class ArtistService {
     return artist;
   }
 
+  /** Appends a row using `newId()` so ids stay centralized / mock-friendly. */
   createArtist(body: CreateArtist): Artist {
     const newArtist: Artist = {
       ...body,
@@ -78,6 +89,7 @@ export class ArtistService {
     return newArtist;
   }
 
+  /** PUT semantics — replace entire entity except the stable primary key from the URL. */
   updateArtist(id: string, body: UpdateArtist): Artist {
     const existingArtistIndex = this.artists.findIndex(
       (artist) => artist.id === Number(id),
@@ -95,6 +107,7 @@ export class ArtistService {
     return this.artists[existingArtistIndex];
   }
 
+  /** PATCH semantics — shallow merge over the existing record. */
   partiallyUpdateArtist(id: string, body: PartiallyUpdateArtist): Artist {
     const existingArtistIndex = this.artists.findIndex(
       (artist) => artist.id === Number(id),
@@ -113,6 +126,7 @@ export class ArtistService {
     return this.artists[existingArtistIndex];
   }
 
+  /** Idempotent-friendly delete: silently removes matches; HTTP layer sets 204 in the controller. */
   deleteArtist(id: string): void {
     this.artists = this.artists.filter((artist) => artist.id !== Number(id));
   }

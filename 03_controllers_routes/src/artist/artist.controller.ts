@@ -1,3 +1,11 @@
+/**
+ * REST-style demo controller for `Artist` resources.
+ *
+ * **Route order:** `@Get('search')` is declared before `@Get(':id')` so `/artist/search` is not
+ * interpreted as `id = "search"`. Static paths must usually come before dynamic segments.
+ *
+ * Data is kept in memory on the class for learning; `04_providers_di` extracts this into `ArtistService`.
+ */
 import {
   Body,
   Controller,
@@ -19,11 +27,14 @@ interface Artist {
   genre: string;
 }
 
+/** Payload for POST — no `id` yet (server assigns it here). */
 type CreateArtist = Omit<Artist, 'id'>;
 // type CreateArtist = Pick<Artist, 'name' | 'genre'>;
 
+/** PUT replaces name + genre; `id` comes from the URL. */
 type UpdateArtist = Omit<Artist, 'id'>;
 
+/** PATCH allows a subset of fields (`Partial` of the PUT shape). */
 type PartiallyUpdateArtist = Partial<UpdateArtist>;
 
 @Controller('artist')
@@ -56,12 +67,13 @@ export class ArtistController {
     },
   ];
 
+  /** GET /artist — return the full in-memory list. */
   @Get()
   getAllArtists() {
     return this.artists;
   }
 
-  // /localhost:3000/artist/search?genre=Rock
+  /** GET /artist/search?genre=Rock — `@Query('genre')` reads the query string; empty genre → all artists. */
   @Get('search')
   search(@Query('genre') genre: string): Artist[] {
     console.log('Received genre:', genre);
@@ -73,7 +85,10 @@ export class ArtistController {
     );
   }
 
-  // /localhost:3000/artist/1
+  /**
+   * GET /artist/:id — `:id` is always a string; compare with `Number(id)` or validate first.
+   * `NotFoundException` becomes HTTP 404 with a JSON error body in Nest’s default exception filter.
+   */
   @Get(':id')
   getArtistById(@Param('id') id: string): Artist {
     console.log('Received ID:', id, typeof id); // Debugging log
@@ -86,6 +101,7 @@ export class ArtistController {
     return artist;
   }
 
+  /** POST /artist — JSON body mapped to `CreateArtist`; naive `id` generation for the demo list. */
   @Post()
   createArtist(@Body() body: CreateArtist): Artist {
     const newArtist: Artist = {
@@ -98,6 +114,7 @@ export class ArtistController {
     return newArtist;
   }
 
+  /** PUT /artist/:id — replace the entire resource; 404 if the id does not exist. */
   @Put(':id')
   updateArtist(@Param('id') id: string, @Body() body: UpdateArtist) {
     const existingArtistIndex = this.artists.findIndex(
@@ -116,6 +133,7 @@ export class ArtistController {
     return this.artists[existingArtistIndex];
   }
 
+  /** PATCH /artist/:id — merge JSON fields onto the existing artist; `id` in the URL wins. */
   @Patch(':id')
   partiallyUpdateArtist(
     @Param('id') id: string,
@@ -138,6 +156,10 @@ export class ArtistController {
     return this.artists[existingArtistIndex];
   }
 
+  /**
+   * DELETE /artist/:id — remove if present; respond with **204 No Content** and no JSON body.
+   * `@HttpCode` sets the status because Nest would otherwise default to 200 for an empty return.
+   */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteArtist(@Param('id') id: string): void {
