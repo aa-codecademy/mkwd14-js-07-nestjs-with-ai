@@ -1,33 +1,17 @@
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  Artist,
+  CreateArtist,
+  PartiallyUpdateArtist,
+  UpdateArtist,
+} from './artist.interface';
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  NotFoundException,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-} from '@nestjs/common';
+  ARTIST_ID_GENERATOR,
+  type ArtistIdGenerator,
+} from '../common/providers/id-generator';
 
-interface Artist {
-  id: number;
-  name: string;
-  genre: string;
-}
-
-type CreateArtist = Omit<Artist, 'id'>;
-// type CreateArtist = Pick<Artist, 'name' | 'genre'>;
-
-type UpdateArtist = Omit<Artist, 'id'>;
-
-type PartiallyUpdateArtist = Partial<UpdateArtist>;
-
-@Controller('artist')
-export class ArtistController {
+@Injectable()
+export class ArtistService {
   private artists: Artist[] = [
     {
       id: 1,
@@ -56,15 +40,15 @@ export class ArtistController {
     },
   ];
 
-  @Get()
-  getAllArtists() {
+  constructor(
+    @Inject(ARTIST_ID_GENERATOR) private readonly newId: ArtistIdGenerator,
+  ) {}
+
+  getAllArtists(): Artist[] {
     return this.artists;
   }
 
-  // /localhost:3000/artist/search?genre=Rock
-  @Get('search')
-  search(@Query('genre') genre: string): Artist[] {
-    console.log('Received genre:', genre);
+  search(genre: string): Artist[] {
     if (!genre) {
       return this.artists;
     }
@@ -73,10 +57,7 @@ export class ArtistController {
     );
   }
 
-  // /localhost:3000/artist/1
-  @Get(':id')
-  getArtistById(@Param('id') id: string): Artist {
-    console.log('Received ID:', id, typeof id); // Debugging log
+  getArtistById(id: string): Artist {
     const artist = this.artists.find((artist) => artist.id === Number(id));
 
     if (!artist) {
@@ -86,11 +67,10 @@ export class ArtistController {
     return artist;
   }
 
-  @Post()
-  createArtist(@Body() body: CreateArtist): Artist {
+  createArtist(body: CreateArtist): Artist {
     const newArtist: Artist = {
       ...body,
-      id: this.artists.length + 1,
+      id: this.newId(),
     };
 
     this.artists.push(newArtist);
@@ -98,8 +78,7 @@ export class ArtistController {
     return newArtist;
   }
 
-  @Put(':id')
-  updateArtist(@Param('id') id: string, @Body() body: UpdateArtist) {
+  updateArtist(id: string, body: UpdateArtist): Artist {
     const existingArtistIndex = this.artists.findIndex(
       (artist) => artist.id === Number(id),
     );
@@ -116,11 +95,7 @@ export class ArtistController {
     return this.artists[existingArtistIndex];
   }
 
-  @Patch(':id')
-  partiallyUpdateArtist(
-    @Param('id') id: string,
-    @Body() body: PartiallyUpdateArtist,
-  ) {
+  partiallyUpdateArtist(id: string, body: PartiallyUpdateArtist): Artist {
     const existingArtistIndex = this.artists.findIndex(
       (artist) => artist.id === Number(id),
     );
@@ -138,9 +113,7 @@ export class ArtistController {
     return this.artists[existingArtistIndex];
   }
 
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  deleteArtist(@Param('id') id: string): void {
+  deleteArtist(id: string): void {
     this.artists = this.artists.filter((artist) => artist.id !== Number(id));
   }
 }
