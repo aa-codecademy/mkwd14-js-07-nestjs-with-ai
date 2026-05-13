@@ -22,7 +22,7 @@ export class SongController {
   }
 
   @Get(':id')
-  getSongById(@Param('id') id: string): Song {
+  getSongById(@Param('id') id: string): Song & { artistName: string } {
     return this.songService.getSongById(Number(id));
   }
 

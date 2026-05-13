@@ -1,58 +1,146 @@
-# NestJS — providers & dependency injection (SEDC)
+# NestJS — modules structure and architecture (SEDC)
 
-This module continues the **artist** HTTP API from [`03_controllers_routes`](../03_controllers_routes/README.md), but moves **data and rules** into an **`ArtistService`** registered as a **provider**. The controller becomes thin: it only maps HTTP to service calls.
+This lesson focuses on **how to structure a Nest application with modules** so features stay isolated, reusable, and easy to scale.
 
-You will also see a **custom provider**: an injectable **ID generator** token implemented with `useFactory`.
+You already know controllers/services from previous modules. Here we add proper **feature module boundaries**, **exports/imports**, and **architecture rules** that prevent circular dependency issues.
 
 ---
 
 ## Working inside the course repo (avoid nested Git)
 
-If **`04_providers_di/.git`** exists, delete it so you do not nest one Git repository inside the main course repo:
+If `05_modules_structure/.git` exists, remove it so you do not nest one Git repository inside another:
 
 ```bash
-cd 04_providers_di
+cd 05_modules_structure
 rm -rf .git
 ```
 
-Commit and push from the **repository root** only.
+Commit and push from the repository root (`mkwd14-js-07-nestjs-with-ai`).
 
 ---
 
-## Theory: providers and dependency injection
+## What is a module in Nest?
 
-### What is a provider?
+A **module** (`@Module`) is the unit of composition in Nest.
 
-In Nest, a **provider** is usually a class marked `@Injectable()` that can be **injected** into controllers or other providers. You list providers in `@Module({ providers: [...] })`. By default Nest creates **one shared instance** per provider (singleton scope in the module).
+Each module declares:
 
-### Constructor injection
+- `controllers`: HTTP entry points for that feature
+- `providers`: services and other injectable classes
+- `imports`: other modules it depends on
+- `exports`: providers it shares with other modules
 
-```text
-Controller → constructor(private readonly artistsService: ArtistService)
-```
+Think of modules as **feature containers**:
 
-Nest resolves `ArtistService` because it is registered in the same module’s `providers`. No manual `new ArtistService()` in application code.
+- `ArtistModule` owns artist APIs and artist business logic
+- `SongModule` owns song APIs and song business logic
+- `AlbumModule` owns album APIs and album business logic
+- `LoggerModule` is a shared cross-cutting module
 
-### Custom providers (tokens)
+---
 
-Sometimes the dependency is not a class type — for example a **function** or **configuration**. Nest lets you bind an injection **token** (often a `Symbol`) to a value or factory:
+## Architecture in this example
 
-- **`provide`** — the token injectors use (`@Inject(MY_TOKEN)`).
-- **`useFactory`** — a function Nest runs to build the value (can depend on other providers later in more advanced setups).
+### 1) Root module composes features
 
-This sample uses a factory that returns a **function** generating numeric IDs (`Date.now()`), so `ArtistService` stays testable and does not hard-code ID creation.
+`AppModule` should mostly orchestrate:
 
-### Interfaces and TypeScript
+- feature modules
+- global/cross-cutting modules (logging, config, database, auth, etc.)
 
-`Artist` shapes live in **`artist.interface.ts`**. Interfaces are erased at compile time; Nest injection uses runtime tokens (`Symbol`) or classes. **`@Injectable()`** applies to classes, not interfaces.
+It should not hold domain business rules.
 
-### Layering
+### 2) Feature module ownership
 
-| Layer | Responsibility |
-|-------|------------------|
-| Controller | HTTP mapping, status codes, delegating to services |
-| Service | Business rules, in-memory or future persistence |
-| Module | Wiring controllers + providers + exports |
+If `ArtistService` belongs to `ArtistModule`, only `ArtistModule` should provide it.
+
+Other modules use it by:
+
+1. `ArtistModule` exporting `ArtistService`
+2. consumer module importing `ArtistModule`
+
+Avoid re-declaring foreign services in another module’s `providers` array.
+
+### 3) Dynamic module pattern
+
+`LoggerModule.forRoot({ level: 'info' })` shows a dynamic module:
+
+- configuration supplied once at bootstrap
+- configured providers returned by `forRoot`
+- optionally made global to avoid repetitive imports
+
+---
+
+## Circular dependencies and `forwardRef`
+
+### Why circular dependencies happen
+
+Circular references usually appear when two services/modules depend on each other:
+
+- `ArtistService` needs `SongService`
+- `SongService` needs `ArtistService`
+
+This creates a cycle in the DI graph.
+
+### What `forwardRef` does
+
+`forwardRef(() => SomeService)` defers resolution and can unblock startup.
+
+It is a **workaround**, not ideal architecture.
+
+### Why avoid it when possible
+
+Frequent `forwardRef` usage is often a design smell:
+
+- features are too tightly coupled
+- responsibilities are mixed
+- harder testing and maintenance
+
+### Better approach (used in this lesson)
+
+We removed the cycle by making dependencies one-way:
+
+- `SongService` can depend on `ArtistService`
+- `ArtistService` does not depend on `SongService`
+
+Result:
+
+- no `forwardRef` needed
+- cleaner module graph
+- easier to reason about ownership
+
+---
+
+## Real-world patterns to follow
+
+### Do
+
+- Keep modules feature-focused (`users`, `orders`, `payments`, `inventory`)
+- Export only what another module truly needs
+- Keep dependencies directional (A -> B, avoid A <-> B)
+- Create shared modules for cross-cutting concerns (logger, config, mail)
+- Use interfaces/ports at boundaries when domains must collaborate
+
+### Avoid
+
+- A giant `AppModule` with all providers
+- Copy-pasting providers across modules
+- Bidirectional service dependencies
+- Using `forwardRef` everywhere instead of refactoring boundaries
+- Putting business logic in controllers
+
+---
+
+## Practical anti-cycle strategies
+
+If you detect `forwardRef` pressure, try these in order:
+
+1. **Move orchestration up** to a higher-level service/module that calls both sides.
+2. **Extract shared logic** into a third service/module (e.g. `CatalogQueryService`).
+3. **Depend on abstractions/tokens** instead of concrete classes.
+4. **Split responsibilities** so each service has a single clear domain role.
+
+Use `forwardRef` only when a cycle is temporary or unavoidable for framework-level reasons.
 
 ---
 
@@ -60,11 +148,11 @@ This sample uses a factory that returns a **function** generating numeric IDs (`
 
 | File | Role |
 |------|------|
-| `src/app.module.ts` | Registers `ArtistService`, custom `ARTIST_ID_GENERATOR`, controllers |
-| `src/artist/artist.controller.ts` | Routes only — calls `ArtistService` |
-| `src/artist/artist.service.ts` | In-memory store + `NotFoundException` |
-| `src/artist/artist.interface.ts` | Shared TypeScript types |
-| `src/common/providers/id-generator.ts` | Token + type for ID generator |
+| `src/app.module.ts` | Composes feature modules and logger dynamic module |
+| `src/artist/artist.module.ts` | Owns + exports `ArtistService` |
+| `src/song/song.module.ts` | Imports `ArtistModule`, provides `SongService` |
+| `src/album/album.module.ts` | Independent feature module |
+| `src/logger/logger.module.ts` | Dynamic module (`forRoot`) |
 
 ---
 
@@ -75,23 +163,16 @@ npm install
 npm run start:dev
 ```
 
-Postman: see `SEDC_2026_Nest.postman_collection.json` if present.
-
----
-
-## Tests
-
-```bash
-npm run test
-npm run test:e2e
-```
+Default URL: `http://localhost:3000`.
 
 ---
 
 ## Further reading
 
+- [Modules | NestJS](https://docs.nestjs.com/modules)
 - [Providers | NestJS](https://docs.nestjs.com/providers)
-- [Custom providers | NestJS](https://docs.nestjs.com/fundamentals/custom-providers)
+- [Dynamic modules | NestJS](https://docs.nestjs.com/fundamentals/dynamic-modules)
+- [Circular dependency | NestJS](https://docs.nestjs.com/fundamentals/circular-dependency)
 
 ## License
 

@@ -3,19 +3,27 @@
  *
  * `@Inject(ARTIST_ID_GENERATOR)` receives the factory-created ID function from `AppModule`
  * instead of hard-coding `Date.now()` here — easier to mock in tests or swap strategies.
+ *
+ * Important architecture choice:
+ * - This service no longer depends on SongService.
+ * - Keeping dependencies one-directional (Song -> Artist) avoids circular references.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type {
-  Artist,
-  CreateArtist,
-  PartiallyUpdateArtist,
-  UpdateArtist,
-} from './artist.interface';
 import {
-  ARTIST_ID_GENERATOR,
-  type ArtistIdGenerator,
+    Inject,
+    Injectable,
+    NotFoundException,
+} from '@nestjs/common';
+import {
+    ARTIST_ID_GENERATOR,
+    type ArtistIdGenerator,
 } from '../common/providers/id-generator';
 import { LoggerService } from '../logger/logger.service';
+import type {
+    Artist,
+    CreateArtist,
+    PartiallyUpdateArtist,
+    UpdateArtist,
+} from './artist.interface';
 
 @Injectable()
 export class ArtistService {
@@ -78,12 +86,12 @@ export class ArtistService {
   }
 
   /** Throws Nest `NotFoundException` → HTTP 404 via the default exception layer. */
-  getArtistById(id: string): Artist {
+  getArtistById(id: number): Artist {
     this.logger.info(
       'ArtistService.getArtistById',
       `Retrieving artist with ID: ${id}`,
     );
-    const artist = this.artists.find((artist) => artist.id === Number(id));
+    const artist = this.artists.find((artist) => artist.id === id);
 
     if (!artist) {
       this.logger.error(

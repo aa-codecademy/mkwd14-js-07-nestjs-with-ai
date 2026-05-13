@@ -44,7 +44,7 @@ export class ArtistController {
   @Get(':id')
   getArtistById(@Param('id') id: string): Artist {
     console.log('Received ID:', id, typeof id); // Debugging log
-    return this.artistsService.getArtistById(id);
+    return this.artistsService.getArtistById(+id);
   }
 
   /** Creates an artist; server assigns `id` inside the service using the injected ID generator. */

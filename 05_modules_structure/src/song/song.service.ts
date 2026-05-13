@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+    Injectable,
+    NotFoundException,
+} from '@nestjs/common';
+import { ArtistService } from '../artist/artist.service';
+import { LoggerService } from '../logger/logger.service';
 import type { Song } from './song.interface';
 
 @Injectable()
@@ -7,41 +12,56 @@ export class SongService {
     {
       id: 1,
       title: 'Bohemian Rhapsody',
-      artist: 'Queen',
+      artistId: 1,
       durationInSeconds: 354,
     },
     {
       id: 2,
       title: 'Imagine',
-      artist: 'John Lennon',
+      artistId: 2,
       durationInSeconds: 183,
     },
     {
       id: 3,
       title: 'Hotel California',
-      artist: 'Eagles',
+      artistId: 3,
       durationInSeconds: 391,
     },
     {
       id: 4,
       title: 'Stairway to Heaven',
-      artist: 'Led Zeppelin',
+      artistId: 4,
       durationInSeconds: 482,
     },
   ];
+
+  constructor(
+    private readonly logger: LoggerService,
+    /**
+     * One-way dependency: SongService can read artists, but ArtistService does not depend on SongService.
+     * This avoids circular provider graphs and removes the need for `forwardRef(...)`.
+     */
+    private readonly artistService: ArtistService,
+  ) {}
 
   getSongs(): Song[] {
     return this.songs;
   }
 
-  getSongById(id: number): Song {
+  getSongById(id: number): Song & { artistName: string } {
     const song = this.songs.find((song) => song.id === id);
 
     if (!song) {
       throw new NotFoundException(`Song with id ${id} not found`);
     }
 
-    return song;
+    const artist = this.artistService.getArtistById(song.artistId);
+
+    return { ...song, artistName: artist.name };
+  }
+
+  getSongsByArtistId(artistId: number): Song[] {
+    return this.songs.filter((song) => song.artistId === artistId);
   }
 
   createSong(body: Omit<Song, 'id'>): Song {
