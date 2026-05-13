@@ -15,6 +15,7 @@ import {
   ARTIST_ID_GENERATOR,
   type ArtistIdGenerator,
 } from '../common/providers/id-generator';
+import { LoggerService } from '../logger/logger.service';
 
 @Injectable()
 export class ArtistService {
@@ -49,16 +50,26 @@ export class ArtistService {
   constructor(
     /** Callable injected via `useFactory` — returns the next numeric id when creating rows. */
     @Inject(ARTIST_ID_GENERATOR) private readonly newId: ArtistIdGenerator,
+    private readonly logger: LoggerService,
   ) {}
 
   /** Snapshot of every stored artist (no pagination in this demo). */
   getAllArtists(): Artist[] {
+    this.logger.info('ArtistService.getAllArtists', 'Retrieving all artists');
     return this.artists;
   }
 
   /** Case-insensitive genre filter; empty string → behave like “no filter”. */
   search(genre: string): Artist[] {
+    this.logger.info(
+      'ArtistService.search',
+      `Searching artists with genre: ${genre}`,
+    );
     if (!genre) {
+      this.logger.warn(
+        'ArtistService.search',
+        'Empty genre provided, returning all artists',
+      );
       return this.artists;
     }
     return this.artists.filter(
@@ -68,12 +79,24 @@ export class ArtistService {
 
   /** Throws Nest `NotFoundException` → HTTP 404 via the default exception layer. */
   getArtistById(id: string): Artist {
+    this.logger.info(
+      'ArtistService.getArtistById',
+      `Retrieving artist with ID: ${id}`,
+    );
     const artist = this.artists.find((artist) => artist.id === Number(id));
 
     if (!artist) {
+      this.logger.error(
+        'ArtistService.getArtistById',
+        `Artist with ID ${id} not found`,
+      );
       throw new NotFoundException(`Artist with ID ${id} not found`);
     }
 
+    this.logger.debug(
+      'ArtistService.getArtistById',
+      `Found artist: ${artist.name} (Genre: ${artist.genre})`,
+    );
     return artist;
   }
 

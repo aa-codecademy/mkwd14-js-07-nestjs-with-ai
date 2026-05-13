@@ -9,9 +9,16 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { ArtistModule } from './artist/artist.module';
 import { SongModule } from './song/song.module';
+import { AlbumModule } from './album/album.module';
+import { LoggerModule } from './logger/logger.module';
 
 @Module({
-  imports: [ArtistModule, SongModule],
+  imports: [
+    ArtistModule,
+    SongModule,
+    AlbumModule,
+    LoggerModule.forRoot({ level: 'info' }),
+  ],
   controllers: [AppController],
   providers: [],
 })
