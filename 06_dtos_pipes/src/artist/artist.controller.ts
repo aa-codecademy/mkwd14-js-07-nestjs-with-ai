@@ -1,6 +1,21 @@
 /**
- * Artist HTTP API — **thin controller**: validation of HTTP shapes only; persistence lives in `ArtistService`.
- * Inject the service via the constructor; Nest resolves it from `AppModule.providers`.
+ * Artist HTTP API.
+ *
+ * Focus for this lesson — see how each handler argument is built:
+ *
+ *   - `@Body() body: ArtistCreateDto`   → runs through the GLOBAL
+ *     `ValidationPipe` (registered in `main.ts`). The raw JSON is converted
+ *     into an `ArtistCreateDto` instance and every decorator on the class
+ *     is checked. If anything fails, Nest replies with HTTP 400 and this
+ *     method is never called.
+ *
+ *   - `@Param('id') id: string`         → bound from the URL. To get UUID
+ *     format validation for free you can swap this for
+ *     `@Param('id', ParseUUIDPipe)` — try it as an exercise.
+ *
+ *   - `@Query('genre') genre: string`   → bound from the query string.
+ *     Same trick applies: pipes like `ParseIntPipe`, `DefaultValuePipe`,
+ *     etc. can be chained here.
  */
 import {
   Body,
@@ -10,6 +25,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Put,
@@ -27,54 +43,90 @@ import {
 export class ArtistController {
   constructor(private readonly artistsService: ArtistService) {}
 
-  /** Delegates list retrieval to the service layer. */
   @Get()
   getAllArtists(): ArtistDto[] {
     return this.artistsService.getAllArtists();
   }
 
-  /** Query-string filter — implementation details stay in `ArtistService.search`. */
+  /**
+   * `@Query('genre')` reads `?genre=rock` from the URL.
+   *
+   * No DTO is used here because there is only a single primitive query
+   * parameter. For multi-field query strings you would build a
+   * `class QueryDto` with `@IsOptional`, `@IsInt`, etc. and bind it with
+   * `@Query() query: QueryDto`.
+   */
   @Get('search')
   search(@Query('genre') genre: string): ArtistDto[] {
-    console.log('Received genre:', genre);
     return this.artistsService.search(genre);
   }
 
-  /** `:id` binding — service throws `NotFoundException` when missing. */
+  /**
+   * Compare the two forms:
+   *
+   *   @Param('id') id: string                  ← accepts ANY string
+   *   @Param('id', ParseUUIDPipe) id: string   ← 400 if not a UUID
+   *
+   * `ParseUUIDPipe` is one of Nest's built-in pipes that double as parsers
+   * and validators. Using it here means we never even reach the service if
+   * the id is malformed.
+   */
   @Get(':id')
-  getArtistById(@Param('id') id: string): ArtistDto {
-    console.log('Received ID:', id, typeof id); // Debugging log
+  getArtistById(@Param('id', ParseUUIDPipe) id: string): ArtistDto {
     return this.artistsService.getArtistById(id);
   }
 
-  /** Creates an artist; server assigns `id` inside the service using the injected ID generator. */
+  /**
+   * Creates an artist.
+   *
+   * `body` is automatically:
+   *   1. transformed into an `ArtistCreateDto` instance (because
+   *      `ValidationPipe({ transform: true })` is global), and
+   *   2. validated against every decorator on the DTO (`@IsString`,
+   *      `@Length`, `@ValidateNested`, …).
+   *
+   * If `forbidNonWhitelisted: true` (set in `main.ts`) is enabled, any
+   * extra field the client sends is rejected with HTTP 400.
+   */
   @Post()
   createArtist(@Body() body: ArtistCreateDto): ArtistDto {
     return this.artistsService.createArtist(body);
   }
 
-  /** Full replacement of name/genre for one id. */
+  /**
+   * PUT example (commented out so PATCH is the only working endpoint).
+   *
+   * Note how PUT would use a "full" DTO (`ArtistUpdateDto`) where required
+   * fields are NOT optional — PUT replaces the whole resource.
+   */
   // @Put(':id')
   // updateArtist(
-  //   @Param('id') id: string,
+  //   @Param('id', ParseUUIDPipe) id: string,
   //   @Body() body: ArtistUpdateDto,
   // ): ArtistDto {
   //   return this.artistsService.updateArtist(id, body);
   // }
 
-  /** Partial merge — unchanged fields stay as stored on the server. */
+  /**
+   * PATCH = partial update. The DTO used here is built from
+   * `PartialType(ArtistCreateDto)` — every field optional, but each field
+   * that IS sent is still validated.
+   */
   @Patch(':id')
   partiallyUpdateArtist(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: ArtistPartialUpdateDto,
   ): ArtistDto {
     return this.artistsService.partiallyUpdateArtist(id, body);
   }
 
-  /** 204 No Content on success — mirrors REST conventions from module 03. */
+  /**
+   * `@HttpCode(204)` overrides the default 201 for DELETE so we conform to
+   * REST conventions: "no content" on success.
+   */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteArtist(@Param('id') id: string): void {
+  deleteArtist(@Param('id', ParseUUIDPipe) id: string): void {
     this.artistsService.deleteArtist(id);
   }
 }
