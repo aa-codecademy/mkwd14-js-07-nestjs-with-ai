@@ -54,13 +54,13 @@ export class ArtistController {
   }
 
   /** Full replacement of name/genre for one id. */
-  @Put(':id')
-  updateArtist(
-    @Param('id') id: string,
-    @Body() body: ArtistUpdateDto,
-  ): ArtistDto {
-    return this.artistsService.updateArtist(id, body);
-  }
+  // @Put(':id')
+  // updateArtist(
+  //   @Param('id') id: string,
+  //   @Body() body: ArtistUpdateDto,
+  // ): ArtistDto {
+  //   return this.artistsService.updateArtist(id, body);
+  // }
 
   /** Partial merge — unchanged fields stay as stored on the server. */
   @Patch(':id')

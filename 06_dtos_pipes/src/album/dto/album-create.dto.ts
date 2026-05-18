@@ -1,11 +1,30 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
+  IsArray,
+  IsBoolean,
+  IsDate,
   IsInt,
+  IsOptional,
   IsPositive,
   IsString,
   IsUUID,
   Length,
-  Max,
+  ValidateNested,
 } from 'class-validator';
+
+class AlbumEditionDto {
+  @IsString()
+  @Length(2, 40)
+  format!: string;
+
+  @IsInt()
+  @IsPositive()
+  copies!: number;
+
+  @IsBoolean()
+  isLimited!: boolean;
+}
 
 export class AlbumCreateDto {
   @IsString()
@@ -15,8 +34,14 @@ export class AlbumCreateDto {
   @IsUUID('4')
   artistId!: string;
 
-  @IsInt()
-  @IsPositive()
-  @Max(new Date().getFullYear())
-  year!: number;
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  releaseDate?: Date;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @Type(() => AlbumEditionDto)
+  @ValidateNested({ each: true })
+  editions!: AlbumEditionDto[];
 }

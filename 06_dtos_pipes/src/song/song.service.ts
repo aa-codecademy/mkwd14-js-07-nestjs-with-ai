@@ -30,13 +30,17 @@ export class SongService {
       throw new NotFoundException(`Song with id ${id} not found`);
     }
 
-    const artist = this.artistService.getArtistById(song.artistId);
+    return { ...song, artistName: 'WIP' };
 
-    return { ...song, artistName: artist.name };
+    // const artist = this.artistService.getArtistById(song.artistId);
+
+    // return { ...song, artistName: artist.name };
   }
 
   getSongsByArtistId(artistId: string): SongDto[] {
-    return this.songs.filter((song) => song.artistId === artistId);
+    return this.songs.filter((song) =>
+      song.featuringArtistsId.includes(artistId),
+    );
   }
 
   createSong(body: SongCreateDto): SongDto {

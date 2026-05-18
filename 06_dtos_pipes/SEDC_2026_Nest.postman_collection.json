@@ -166,274 +166,1123 @@
       "name": "03_controllers_routes",
       "item": [
         {
-          "name": "Health",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "localhost:3000/health",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "health"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Root endpoint",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "localhost:3000/",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                ""
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Docs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "localhost:3000/docs",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "docs"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Request Info",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "localhost:3000/request-info",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "request-info"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Artists",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "localhost:3000/artist",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "artist"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Search Artists",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "localhost:3000/artist/search?genre=hip hop",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "artist",
-                "search"
-              ],
-              "query": [
-                {
-                  "key": "genre",
-                  "value": "hip hop",
-                  "type": "text"
+          "name": "App",
+          "item": [
+            {
+              "name": "Root endpoint",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    ""
+                  ]
                 }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Artist By ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "localhost:3000/artist/:id",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "artist",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "3"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Create artist",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"Vlado Janevski\",\n    \"genre\": \"Pop\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "localhost:3000/artist",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "artist"
-              ]
+            {
+              "name": "Docs",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/docs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "docs"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Request Info",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/request-info",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "request-info"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/health",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "health"
+                  ]
+                }
+              },
+              "response": []
             }
-          },
-          "response": []
+          ]
         },
         {
-          "name": "Delete artist",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"Vlado Janevski\",\n    \"genre\": \"Pop\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+          "name": "Artist",
+          "item": [
+            {
+              "name": "Search Artists",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/artist/search",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "genre",
+                      "value": "hip hop",
+                      "disabled": true
+                    }
+                  ]
                 }
-              }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "localhost:3000/artist/:id",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "artist",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "3"
+            {
+              "name": "Get Artists",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/artist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist"
+                  ]
                 }
-              ]
+              },
+              "response": []
+            },
+            {
+              "name": "Get Artist By ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "2"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create artist",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Vlado Janevski\",\n    \"genre\": \"Pop\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete artist",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Vlado Janevski\",\n    \"genre\": \"Pop\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "3"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Artist",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"The Beatles\",\n    \"genre\": \"Pop-Rock\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Partial Update Artist",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Legijata\",\n    \"genre\": \"Rap\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
             }
-          },
-          "response": []
+          ]
         },
         {
-          "name": "Update Artist",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"The Beatles\",\n    \"genre\": \"Pop-Rock\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+          "name": "Song",
+          "item": [
+            {
+              "name": "Get songs",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/song",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song"
+                  ]
                 }
-              }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "localhost:3000/artist/:id",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "artist",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "1"
+            {
+              "name": "Get song by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/song/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1"
+                    }
+                  ]
                 }
-              ]
+              },
+              "response": []
+            },
+            {
+              "name": "Create song",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Without me\",\n    \"durationInSeconds\": 250,\n    \"artist\": \"Eminem\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/song",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update song",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Slim Shady\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/song/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "5"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete song",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Slim Shady\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/song/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
             }
-          },
-          "response": []
+          ]
         },
         {
-          "name": "Partial Update Artist",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"Legijata\",\n    \"genre\": \"Rap\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+          "name": "Album",
+          "item": [
+            {
+              "name": "Get albums",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/album",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album"
+                  ]
                 }
-              }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "localhost:3000/artist/:id",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "artist",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "1"
+            {
+              "name": "Get album by id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/album/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "2"
+                    }
+                  ]
                 }
-              ]
+              },
+              "response": []
+            },
+            {
+              "name": "Create album",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Real Slim Shady\",\n    \"artist\": \"Eminem\",\n    \"year\": 2000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/album",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update album",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"artist\": \"50 cent\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/album/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "4"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete album",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/album/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "2"
+                    }
+                  ]
+                }
+              },
+              "response": []
             }
-          },
-          "response": []
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06_dtos",
+      "item": [
+        {
+          "name": "App",
+          "item": [
+            {
+              "name": "Root endpoint",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    ""
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Docs",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/docs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "docs"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Request Info",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/request-info",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "request-info"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/health",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "health"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Artist",
+          "item": [
+            {
+              "name": "Search Artists",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/artist/search",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "genre",
+                      "value": "hip hop",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Artists",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/artist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Artist By ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "2"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create artist",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Marshal Mathers\",\n    \"genre\": \"hip-hop\",\n    \"debutYear\": 1980,\n    \"isActive\": true,\n    \"aliases\": [\n        \"Eminem\",\n        \"Slim Shady\"\n    ],\n    \"profile\": {\n        \"country\": \"USA\",\n        \"city\": \"Detroit City\",\n        \"bookingEmail\": \"email@email.com\",\n        \"website\": \"https://eminem.com\"\n    }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete artist",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Vlado Janevski\",\n    \"genre\": \"Pop\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "3"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Artist",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"The Beatles\",\n    \"genre\": \"rock\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "12b3e0a3-6ddf-477a-8f15-598b81002967"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Partial Update Artist",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Legijata\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/artist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "artist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "12b3e0a3-6ddf-477a-8f15-598b81002967"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Song",
+          "item": [
+            {
+              "name": "Get songs",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/song",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get song by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/song/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create song",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Without me\",\n    \"durationSeconds\": 180,\n    \"featuringArtistsId\": [\"c8fc109a-1ff8-4211-9400-04a53b318196\"],\n    \"isExplicit\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/song",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update song",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Slim Shady\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/song/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "5"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete song",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Slim Shady\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/song/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "song",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Album",
+          "item": [
+            {
+              "name": "Get albums",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/album",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get album by id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/album/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "95f0667d-2eb1-46ad-b9d7-0e89c222d463"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create album",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Real Slim Shady\",\n    \"artistId\": \"c44bbc47-caee-4e88-9132-077270c09ce7\",\n    \"releaseDate\": \"2026-05-18T18:35:02.136Z\",\n    \"editions\": [\n        {\n            \"format\": \"cassete\",\n            \"copies\": 1000,\n            \"isLimited\": true\n        },\n        {\n            \"format\": \"cassete\",\n            \"copies\": 1000,\n            \"isLimited\": true\n        }\n    ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/album",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update album",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"New title\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/album/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "95f0667d-2eb1-46ad-b9d7-0e89c222d463"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete album",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "localhost:3000/album/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "album",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "95f0667d-2eb1-46ad-b9d7-0e89c222d463"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
         }
       ]
     }

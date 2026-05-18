@@ -91,22 +91,22 @@ export class ArtistService {
   }
 
   /** PUT semantics — replace entire entity except the stable primary key from the URL. */
-  updateArtist(id: string, body: ArtistUpdateDto): ArtistDto {
-    const existingArtistIndex = this.artists.findIndex(
-      (artist) => artist.id === id,
-    );
+  // updateArtist(id: string, body: ArtistUpdateDto): ArtistDto {
+  //   const existingArtistIndex = this.artists.findIndex(
+  //     (artist) => artist.id === id,
+  //   );
 
-    if (existingArtistIndex === -1) {
-      throw new NotFoundException(`Artist with ID ${id} not found`);
-    }
+  //   if (existingArtistIndex === -1) {
+  //     throw new NotFoundException(`Artist with ID ${id} not found`);
+  //   }
 
-    this.artists[existingArtistIndex] = {
-      ...body,
-      id,
-    };
+  //   this.artists[existingArtistIndex] = {
+  //     ...body,
+  //     id,
+  //   };
 
-    return this.artists[existingArtistIndex];
-  }
+  //   return this.artists[existingArtistIndex];
+  // }
 
   /** PATCH semantics — shallow merge over the existing record. */
   partiallyUpdateArtist(id: string, body: ArtistPartialUpdateDto): ArtistDto {
