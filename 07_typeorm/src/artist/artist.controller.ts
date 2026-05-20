@@ -28,16 +28,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  Put,
-  Query,
 } from '@nestjs/common';
 import { ArtistService } from './artist.service';
 import { ArtistCreateDto } from './dto/artist-create.dto';
-import { ArtistDto } from './dto/artist.dto';
-import {
-  ArtistPartialUpdateDto,
-  ArtistUpdateDto,
-} from './dto/artist-update.dto';
+import { ArtistPartialUpdateDto } from './dto/artist-update.dto';
 import type { Artist } from './artist.entity';
 
 @Controller('artist')

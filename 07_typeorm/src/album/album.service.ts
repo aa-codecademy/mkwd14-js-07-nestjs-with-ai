@@ -1,50 +1,51 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AlbumDto } from './dto/album.dto';
 import { AlbumCreateDto } from './dto/album-create.dto';
-import { randomUUID } from 'crypto';
 import { AlbumUpdateDto } from './dto/album-update.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Album } from './album.entity';
+import type { Repository } from 'typeorm';
 
 @Injectable()
 export class AlbumService {
-  private albums: AlbumDto[] = [];
+  constructor(
+    @InjectRepository(Album)
+    private readonly albumRepository: Repository<Album>,
+  ) {}
 
-  create(body: AlbumCreateDto): AlbumDto {
-    const newAlbum: AlbumDto = {
-      ...body,
-      id: randomUUID(),
-    };
+  async create(body: AlbumCreateDto): Promise<Album> {
+    const newAlbum = this.albumRepository.create(body);
 
-    this.albums.push(newAlbum);
+    const createdAlbum = await this.albumRepository.save(newAlbum);
 
-    return newAlbum;
+    return createdAlbum;
   }
 
-  findAll(): AlbumDto[] {
-    return this.albums;
+  findAll(): Promise<Album[]> {
+    return this.albumRepository.find();
   }
 
-  findOne(id: string): AlbumDto {
-    const album = this.albums.find((album) => album.id === id);
+  async findOne(id: string): Promise<Album> {
+    const album = await this.albumRepository.findOneBy({ id });
+
     if (!album) {
       throw new NotFoundException(`Album with id ${id} not found`);
     }
+
     return album;
   }
 
-  update(id: string, body: AlbumUpdateDto): AlbumDto {
-    this.findOne(id); // Check if the album exists
+  async update(id: string, body: AlbumUpdateDto): Promise<Album> {
+    const album = await this.findOne(id);
 
-    this.albums = this.albums.map((album) => {
-      if (album.id === id) {
-        return { ...album, ...body };
-      }
-      return album;
+    const updatedAlbum = await this.albumRepository.save({
+      ...album,
+      ...body,
     });
 
-    return this.findOne(id); // Return the updated album
+    return updatedAlbum;
   }
 
-  remove(id: string): void {
-    this.albums = this.albums.filter((album) => album.id !== id);
+  async remove(id: string): Promise<void> {
+    await this.albumRepository.softDelete(id);
   }
 }

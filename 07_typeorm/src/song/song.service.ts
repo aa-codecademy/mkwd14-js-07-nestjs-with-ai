@@ -1,18 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ArtistService } from '../artist/artist.service';
 import { LoggerService } from '../logger/logger.service';
-import { SongDto } from './dto/song.dto';
 import { SongCreateDto } from './dto/song-create.dto';
 import { SongUpdateDto } from './dto/song-update.dto';
-import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from './song.entity';
 import type { Repository } from 'typeorm';
 
 @Injectable()
 export class SongService {
-  private songs: SongDto[] = [];
-
   constructor(
     @InjectRepository(Song) private readonly songRepository: Repository<Song>,
     private readonly logger: LoggerService,
@@ -35,10 +30,10 @@ export class SongService {
     return song;
   }
 
-  getSongsByArtistId(artistId: string): SongDto[] {
-    return this.songs.filter((song) =>
-      song.featuringArtistsId.includes(artistId),
-    );
+  getSongsByArtistId(artistId: string): any {
+    // return this.songs.filter((song) =>
+    //   song.featuringArtistsId.includes(artistId),
+    // );
   }
 
   async createSong(body: SongCreateDto): Promise<Song> {

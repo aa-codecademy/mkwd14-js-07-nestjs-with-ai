@@ -20,7 +20,6 @@ import {
 } from '@nestjs/common';
 import { SongService } from './song.service';
 import { SongCreateDto } from './dto/song-create.dto';
-import { SongDto } from './dto/song.dto';
 import { SongUpdateDto } from './dto/song-update.dto';
 import type { Song } from './song.entity';
 

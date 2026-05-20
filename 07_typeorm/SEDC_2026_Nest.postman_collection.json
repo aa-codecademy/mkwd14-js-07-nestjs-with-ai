@@ -869,7 +869,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "2"
+                      "value": "c1ac96e7-d9b6-4672-9427-1cc44192b723"
                     }
                   ]
                 }
@@ -883,7 +883,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"name\": \"Marshal Mathers\",\n    \"genre\": \"hip-hop\",\n    \"debutYear\": 1980,\n    \"isActive\": true,\n    \"aliases\": [\n        \"Eminem\",\n        \"Slim Shady\"\n    ],\n    \"profile\": {\n        \"country\": \"USA\",\n        \"city\": \"Detroit City\",\n        \"bookingEmail\": \"email@email.com\",\n        \"website\": \"https://eminem.com\"\n    }\n}",
+                  "raw": "{\n    \"name\": \"Vlado Janevski\",\n    \"genre\": \"pop\",\n    \"debutYear\": 1970,\n    \"isActive\": true,\n    \"aliases\": [\"Vlado\"],\n    \"profile\": {\n        \"country\": \"USA\",\n        \"city\": \"Detroit City\",\n        \"bookingEmail\": \"email@email.com\",\n        \"website\": \"https://eminem.com\"\n    }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -930,7 +930,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "3"
+                      "value": "c1ac96e7-d9b6-4672-9427-1cc44192b723"
                     }
                   ]
                 }
@@ -978,7 +978,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"name\": \"Legijata\"\n}",
+                  "raw": "{\n    \"debutYear\": 1975\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -998,7 +998,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "12b3e0a3-6ddf-477a-8f15-598b81002967"
+                      "value": "76bbfc22-ac2e-4014-937d-a839bd197992"
                     }
                   ]
                 }
@@ -1046,7 +1046,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "1"
+                      "value": "4276c559-d94f-4a38-94f6-7378fd3191fe"
                     }
                   ]
                 }
@@ -1087,7 +1087,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"title\": \"Slim Shady\"\n}",
+                  "raw": "{\n    \"durationSeconds\": 190\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1107,7 +1107,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "5"
+                      "value": "4276c559-d94f-4a38-94f6-7378fd3191fe"
                     }
                   ]
                 }
@@ -1141,7 +1141,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "1"
+                      "value": "4276c559-d94f-4a38-94f6-7378fd3191fe"
                     }
                   ]
                 }
@@ -1189,7 +1189,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "95f0667d-2eb1-46ad-b9d7-0e89c222d463"
+                      "value": "48fd424d-b871-4955-8c4e-0ebafbfceff1"
                     }
                   ]
                 }
@@ -1230,7 +1230,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"title\": \"New title\"\n}",
+                  "raw": "{\n    \"releaseDate\": \"2020-01-01\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1250,7 +1250,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "95f0667d-2eb1-46ad-b9d7-0e89c222d463"
+                      "value": "48fd424d-b871-4955-8c4e-0ebafbfceff1"
                     }
                   ]
                 }
@@ -1275,7 +1275,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "95f0667d-2eb1-46ad-b9d7-0e89c222d463"
+                      "value": "48fd424d-b871-4955-8c4e-0ebafbfceff1"
                     }
                   ]
                 }

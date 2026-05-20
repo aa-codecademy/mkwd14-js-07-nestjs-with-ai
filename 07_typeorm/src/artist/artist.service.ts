@@ -11,7 +11,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
 import type { ArtistCreateDto } from './dto/artist-create.dto';
-import type { ArtistDto } from './dto/artist.dto';
 import type { ArtistPartialUpdateDto } from './dto/artist-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Artist } from './artist.entity';
