@@ -5,36 +5,34 @@ import { SongDto } from './dto/song.dto';
 import { SongCreateDto } from './dto/song-create.dto';
 import { SongUpdateDto } from './dto/song-update.dto';
 import { randomUUID } from 'crypto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Song } from './song.entity';
+import type { Repository } from 'typeorm';
 
 @Injectable()
 export class SongService {
   private songs: SongDto[] = [];
 
   constructor(
+    @InjectRepository(Song) private readonly songRepository: Repository<Song>,
     private readonly logger: LoggerService,
-    /**
-     * One-way dependency: SongService can read artists, but ArtistService does not depend on SongService.
-     * This avoids circular provider graphs and removes the need for `forwardRef(...)`.
-     */
-    private readonly artistService: ArtistService,
   ) {}
 
-  getSongs(): SongDto[] {
-    return this.songs;
+  getSongs(): Promise<Song[]> {
+    return this.songRepository.find();
   }
 
-  getSongById(id: string): SongDto & { artistName: string } {
-    const song = this.songs.find((song) => song.id === id);
+  async getSongById(id: string): Promise<Song> {
+    this.logger.debug('getSongById:', id);
+    const song = await this.songRepository.findOne({
+      where: { id },
+    });
 
     if (!song) {
       throw new NotFoundException(`Song with id ${id} not found`);
     }
 
-    return { ...song, artistName: 'WIP' };
-
-    // const artist = this.artistService.getArtistById(song.artistId);
-
-    // return { ...song, artistName: artist.name };
+    return song;
   }
 
   getSongsByArtistId(artistId: string): SongDto[] {
@@ -43,35 +41,23 @@ export class SongService {
     );
   }
 
-  createSong(body: SongCreateDto): SongDto {
-    const newSong: SongDto = {
-      ...body,
-      id: randomUUID(),
-    };
+  async createSong(body: SongCreateDto): Promise<Song> {
+    const newSong = this.songRepository.create(body);
 
-    this.songs.push(newSong);
+    const createdSong = await this.songRepository.save(newSong);
 
-    return newSong;
+    return createdSong;
   }
 
-  updateSong(id: string, body: SongUpdateDto): SongDto {
-    this.getSongById(id);
+  async updateSong(id: string, body: SongUpdateDto): Promise<Song | null> {
+    await this.getSongById(id);
 
-    this.songs = this.songs.map((s) => {
-      if (s.id === id) {
-        return {
-          ...s,
-          ...body,
-          id,
-        };
-      }
-      return s;
-    });
+    await this.songRepository.update(id, body);
 
-    return this.getSongById(id);
+    return this.songRepository.findOneBy({ id });
   }
 
-  deleteSong(id: string): void {
-    this.songs = this.songs.filter((s) => s.id !== id);
+  async deleteSong(id: string): Promise<void> {
+    await this.songRepository.softDelete(id);
   }
 }

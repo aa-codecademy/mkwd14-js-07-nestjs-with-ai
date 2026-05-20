@@ -45,50 +45,15 @@ export class ArtistController {
   constructor(private readonly artistsService: ArtistService) {}
 
   @Get()
-  getAllArtists(): ArtistDto[] {
+  getAllArtists(): Promise<Artist[]> {
     return this.artistsService.getAllArtists();
   }
 
-  /**
-   * `@Query('genre')` reads `?genre=rock` from the URL.
-   *
-   * No DTO is used here because there is only a single primitive query
-   * parameter. For multi-field query strings you would build a
-   * `class QueryDto` with `@IsOptional`, `@IsInt`, etc. and bind it with
-   * `@Query() query: QueryDto`.
-   */
-  @Get('search')
-  search(@Query('genre') genre: string): ArtistDto[] {
-    return this.artistsService.search(genre);
-  }
-
-  /**
-   * Compare the two forms:
-   *
-   *   @Param('id') id: string                  ← accepts ANY string
-   *   @Param('id', ParseUUIDPipe) id: string   ← 400 if not a UUID
-   *
-   * `ParseUUIDPipe` is one of Nest's built-in pipes that double as parsers
-   * and validators. Using it here means we never even reach the service if
-   * the id is malformed.
-   */
   @Get(':id')
-  getArtistById(@Param('id', ParseUUIDPipe) id: string): ArtistDto {
+  getArtistById(@Param('id', ParseUUIDPipe) id: string): Promise<Artist> {
     return this.artistsService.getArtistById(id);
   }
 
-  /**
-   * Creates an artist.
-   *
-   * `body` is automatically:
-   *   1. transformed into an `ArtistCreateDto` instance (because
-   *      `ValidationPipe({ transform: true })` is global), and
-   *   2. validated against every decorator on the DTO (`@IsString`,
-   *      `@Length`, `@ValidateNested`, …).
-   *
-   * If `forbidNonWhitelisted: true` (set in `main.ts`) is enabled, any
-   * extra field the client sends is rejected with HTTP 400.
-   */
   @Post()
   createArtist(@Body() body: ArtistCreateDto): Promise<Artist> {
     return this.artistsService.createArtist(body);
@@ -108,16 +73,11 @@ export class ArtistController {
   //   return this.artistsService.updateArtist(id, body);
   // }
 
-  /**
-   * PATCH = partial update. The DTO used here is built from
-   * `PartialType(ArtistCreateDto)` — every field optional, but each field
-   * that IS sent is still validated.
-   */
   @Patch(':id')
   partiallyUpdateArtist(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: ArtistPartialUpdateDto,
-  ): ArtistDto {
+  ): Promise<Artist> {
     return this.artistsService.partiallyUpdateArtist(id, body);
   }
 
@@ -127,7 +87,7 @@ export class ArtistController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteArtist(@Param('id', ParseUUIDPipe) id: string): void {
-    this.artistsService.deleteArtist(id);
+  async deleteArtist(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.artistsService.deleteArtist(id);
   }
 }

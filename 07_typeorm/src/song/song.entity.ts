@@ -8,24 +8,27 @@ import {
 } from 'typeorm';
 
 @Entity()
-export class Artist {
+export class Song {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ length: 120 })
-  name!: string;
+  @Column({ length: 200 })
+  title!: string;
 
-  @Column({ length: 30 })
-  genre!: string;
-
-  @Column()
-  isActive!: boolean;
-
+  // add positive number check constraint
   @Column({
     type: 'int',
-    nullable: true,
   })
-  debutYear!: number | null;
+  durationSeconds!: number;
+
+  @Column({
+    default: false,
+  })
+  isExplicit!: boolean;
+
+  // @Column('uuid')
+  @Column({ type: 'uuid', nullable: true })
+  albumId!: string;
 
   @CreateDateColumn()
   createdAt!: Date;

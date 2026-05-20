@@ -19,62 +19,27 @@ import type { Repository } from 'typeorm';
 
 @Injectable()
 export class ArtistService {
-  private artists: ArtistDto[] = [];
-
   constructor(
     @InjectRepository(Artist)
     private readonly artistRepository: Repository<Artist>,
     private readonly logger: LoggerService,
   ) {}
 
-  /** Snapshot of every stored artist (no pagination in this demo). */
-  getAllArtists(): ArtistDto[] {
-    this.logger.info('ArtistService.getAllArtists', 'Retrieving all artists');
-    return this.artists;
-  }
-
-  /** Case-insensitive genre filter; empty string → behave like “no filter”. */
-  search(genre: string): ArtistDto[] {
-    this.logger.info(
-      'ArtistService.search',
-      `Searching artists with genre: ${genre}`,
-    );
-    if (!genre) {
-      this.logger.warn(
-        'ArtistService.search',
-        'Empty genre provided, returning all artists',
-      );
-      return this.artists;
-    }
-    return this.artists.filter(
-      (artist) => artist.genre.toLowerCase() === genre.toLowerCase(),
-    );
+  getAllArtists(): Promise<Artist[]> {
+    return this.artistRepository.find();
   }
 
   /** Throws Nest `NotFoundException` → HTTP 404 via the default exception layer. */
-  getArtistById(id: string): ArtistDto {
-    this.logger.info(
-      'ArtistService.getArtistById',
-      `Retrieving artist with ID: ${id}`,
-    );
-    const artist = this.artists.find((artist) => artist.id === id);
+  async getArtistById(id: string): Promise<Artist> {
+    const artist = await this.artistRepository.findOneBy({ id });
 
     if (!artist) {
-      this.logger.error(
-        'ArtistService.getArtistById',
-        `Artist with ID ${id} not found`,
-      );
       throw new NotFoundException(`Artist with ID ${id} not found`);
     }
 
-    this.logger.debug(
-      'ArtistService.getArtistById',
-      `Found artist: ${artist.name} (Genre: ${artist.genre})`,
-    );
     return artist;
   }
 
-  /** Appends a row using `newId()` so ids stay centralized / mock-friendly. */
   async createArtist(body: ArtistCreateDto): Promise<Artist> {
     const newArtist = this.artistRepository.create({
       name: body.name,
@@ -106,27 +71,21 @@ export class ArtistService {
   //   return this.artists[existingArtistIndex];
   // }
 
-  /** PATCH semantics — shallow merge over the existing record. */
-  partiallyUpdateArtist(id: string, body: ArtistPartialUpdateDto): ArtistDto {
-    const existingArtistIndex = this.artists.findIndex(
-      (artist) => artist.id === id,
-    );
+  async partiallyUpdateArtist(
+    id: string,
+    body: ArtistPartialUpdateDto,
+  ): Promise<Artist> {
+    const artist = await this.getArtistById(id);
 
-    if (existingArtistIndex === -1) {
-      throw new NotFoundException(`Artist with ID ${id} not found`);
-    }
-
-    this.artists[existingArtistIndex] = {
-      ...this.artists[existingArtistIndex],
+    const updatedArtist = await this.artistRepository.save({
+      ...artist,
       ...body,
-      id,
-    };
+    });
 
-    return this.artists[existingArtistIndex];
+    return updatedArtist;
   }
 
-  /** Idempotent-friendly delete: silently removes matches; HTTP layer sets 204 in the controller. */
-  deleteArtist(id: string): void {
-    this.artists = this.artists.filter((artist) => artist.id !== id);
+  async deleteArtist(id: string): Promise<void> {
+    await this.artistRepository.softDelete(id);
   }
 }

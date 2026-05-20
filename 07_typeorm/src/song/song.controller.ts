@@ -22,30 +22,24 @@ import { SongService } from './song.service';
 import { SongCreateDto } from './dto/song-create.dto';
 import { SongDto } from './dto/song.dto';
 import { SongUpdateDto } from './dto/song-update.dto';
+import type { Song } from './song.entity';
 
 @Controller('song')
 export class SongController {
   constructor(private readonly songService: SongService) {}
 
   @Get()
-  getSongs(): SongDto[] {
+  getSongs(): Promise<Song[]> {
     return this.songService.getSongs();
   }
 
   @Get(':id')
-  getSongById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): SongDto & { artistName: string } {
+  getSongById(@Param('id', ParseUUIDPipe) id: string): Promise<Song> {
     return this.songService.getSongById(id);
   }
 
-  /**
-   * Notice how this method does NOT manually call `validate(body)` — the
-   * global `ValidationPipe` already did it for us, so by the time the
-   * handler runs we can trust the shape of `body` 100%.
-   */
   @Post()
-  createSong(@Body() body: SongCreateDto): SongDto {
+  createSong(@Body() body: SongCreateDto): Promise<Song> {
     return this.songService.createSong(body);
   }
 
@@ -53,13 +47,13 @@ export class SongController {
   updateSong(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: SongUpdateDto,
-  ): SongDto {
+  ): Promise<Song | null> {
     return this.songService.updateSong(id, body);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  deleteSong(@Param('id', ParseUUIDPipe) id: string): void {
-    this.songService.deleteSong(id);
+  async deleteSong(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.songService.deleteSong(id);
   }
 }
