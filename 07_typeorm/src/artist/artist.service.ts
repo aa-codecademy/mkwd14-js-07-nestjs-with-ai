@@ -1,12 +1,23 @@
 /**
- * Domain logic for artists: in-memory storage for learning (replace with a database later).
+ * Domain logic for artists, backed by TypeORM's `Repository<Artist>`.
  *
- * `@Inject(ARTIST_ID_GENERATOR)` receives the factory-created ID function from `AppModule`
- * instead of hard-coding `Date.now()` here — easier to mock in tests or swap strategies.
+ * Architecture notes:
+ *   - This service owns ALL writes/reads against the `artist` table. Nothing
+ *     else in the app should touch `artistRepository` directly — other modules
+ *     ask `ArtistService` instead.
+ *   - Dependency direction is strictly one-way: `Song -> Artist`. Keeping it
+ *     acyclic prevents Nest's classic circular-DI pitfalls.
  *
- * Important architecture choice:
- * - This service no longer depends on SongService.
- * - Keeping dependencies one-directional (Song -> Artist) avoids circular references.
+ * Repository API in a nutshell:
+ *   - `create(dto)`               – builds an entity instance (no DB call)
+ *   - `save(entity)`              – INSERT or UPDATE depending on PK
+ *   - `find(options?)`            – returns array, excludes soft-deleted rows
+ *   - `findOneBy(criteria)`       – returns one row or null
+ *   - `update(id, partial)`       – raw UPDATE, no hooks, returns affected count
+ *   - `softDelete(id)`            – sets `deletedAt`, keeps the row
+ *   - `restore(id)`               – clears `deletedAt`
+ *   - `delete(id)`                – hard DELETE (irreversible)
+ *   See: https://typeorm.io/repository-api
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
@@ -19,11 +30,21 @@ import type { Repository } from 'typeorm';
 @Injectable()
 export class ArtistService {
   constructor(
+    /**
+     * `@InjectRepository(Artist)` resolves the `Repository<Artist>` provider
+     * that `TypeOrmModule.forFeature([Artist])` registered in `ArtistModule`.
+     * This is how Nest connects DI to TypeORM.
+     */
     @InjectRepository(Artist)
     private readonly artistRepository: Repository<Artist>,
     private readonly logger: LoggerService,
   ) {}
 
+  /**
+   * Returns every artist. Note: we return the Repository's Promise directly —
+   * no need to mark the method `async` for a one-liner pass-through.
+   * In a real app you would add pagination (`take`/`skip`) here.
+   */
   getAllArtists(): Promise<Artist[]> {
     return this.artistRepository.find();
   }
@@ -39,6 +60,12 @@ export class ArtistService {
     return artist;
   }
 
+  /**
+   * Notice how we don't pass `body` directly to `create()` — we explicitly
+   * pick only the fields we want. This is defense-in-depth on top of
+   * `whitelist: true` in `ValidationPipe`: even if a rogue field slipped
+   * through, it would never reach the database.
+   */
   async createArtist(body: ArtistCreateDto): Promise<Artist> {
     const newArtist = this.artistRepository.create({
       name: body.name,
@@ -70,6 +97,17 @@ export class ArtistService {
   //   return this.artists[existingArtistIndex];
   // }
 
+  /**
+   * PATCH (partial update). Steps:
+   *   1. Load the existing entity (throws 404 if missing).
+   *   2. Merge the incoming partial DTO over the loaded entity.
+   *   3. `save()` performs an UPDATE (the PK is set, so TypeORM knows).
+   *
+   * Why load-then-merge rather than `repository.update(id, body)` directly?
+   *   - We get a NotFound error if the artist doesn't exist.
+   *   - We return the fully hydrated row to the caller (`update()` does not).
+   *   - Entity lifecycle hooks (`@BeforeUpdate`, etc.) fire on `save()`.
+   */
   async partiallyUpdateArtist(
     id: string,
     body: ArtistPartialUpdateDto,
@@ -84,6 +122,7 @@ export class ArtistService {
     return updatedArtist;
   }
 
+  /** Soft delete — see `album.service.ts` for the full explanation. */
   async deleteArtist(id: string): Promise<void> {
     await this.artistRepository.softDelete(id);
   }

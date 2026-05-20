@@ -1,428 +1,586 @@
-# NestJS — DTOs, Validation, Transformation, and Pipes (SEDC)
+# NestJS — Databases with TypeORM (SEDC)
 
-This lesson teaches how Nest validates and transforms incoming HTTP data before it ever reaches your business logic.
+This lesson teaches how to connect a NestJS application to a real relational database (PostgreSQL) using **TypeORM**, the most popular ORM in the Nest ecosystem.
 
 You will learn:
 
-- What a **DTO** is and why we use one
-- How **Pipes** plug into the request lifecycle
-- How `ValidationPipe` works with `class-validator` and `class-transformer`
-- How to validate **nested objects**, **arrays**, **optional fields**, and **partial updates**
-- The difference between built-in pipes (`ParseIntPipe`, `ParseUUIDPipe`, …) and the validation pipe
+- What an **ORM** is and why we use one
+- How **TypeORM** connects to a database in Nest (`forRoot` vs `forFeature`)
+- How to declare an **Entity** and what every decorator does (`@Entity`, `@Column`, `@PrimaryGeneratedColumn`, …)
+- How to use a **`Repository<T>`** — `create`, `save`, `find`, `findOneBy`, `update`, `softDelete`
+- The difference between **soft delete** and **hard delete**
+- Why **`synchronize: true`** is fine in class and dangerous in production
+- The role of **migrations** and where to go next
+
+> Validation/DTOs from the previous lesson are still in this project. They are **not** the subject of this lesson — feel free to read those files separately. This README focuses purely on TypeORM and the database layer.
 
 ---
 
-## 1. The request lifecycle (where pipes live)
+## 1. What is an ORM?
+
+An **Object–Relational Mapper** maps rows in a relational database (`SELECT * FROM artist`) to objects in your code (`Artist { id, name, … }`) and back. Instead of writing SQL by hand you describe a **class** and the ORM:
+
+- creates the table for you (or generates a migration that does)
+- turns method calls (`repository.find()`) into SQL (`SELECT * FROM artist`)
+- hydrates the result into instances of your class
+- tracks changes and writes them back when you call `save()`
 
 ```
-HTTP request
-   │
-   ▼
-[ Middleware ]
-   │
-   ▼
-[ Guards ]
-   │
-   ▼
-[ Interceptors (pre) ]
-   │
-   ▼
-[ Pipes ]  ← validation + transformation happens here
-   │
-   ▼
-[ Route handler / Controller method ]
-   │
-   ▼
-[ Interceptors (post) ]
-   │
-   ▼
-[ Exception filters ]
-   │
-   ▼
-HTTP response
+┌──────────────────────────────┐    ┌──────────────────────────────┐
+│  TypeScript world            │    │  PostgreSQL world            │
+│                              │    │                              │
+│  class Artist {              │◀──▶│  TABLE artist (              │
+│    id: string                │    │    id uuid PRIMARY KEY,      │
+│    name: string              │    │    name varchar(120),        │
+│    genre: string             │    │    genre varchar(30),        │
+│    ...                       │    │    ...                       │
+│  }                           │    │  )                           │
+│                              │    │                              │
+│  repository.find()           │───▶│  SELECT * FROM artist        │
+│  repository.save(artist)     │───▶│  INSERT / UPDATE             │
+└──────────────────────────────┘    └──────────────────────────────┘
 ```
 
-Pipes are the **last gate** before your controller method runs. If validation fails, Nest throws a `BadRequestException` and your controller is never called.
+### Trade-offs
+
+| Pros | Cons |
+|------|------|
+| Less boilerplate | Hides SQL — easy to write slow queries |
+| Type-safe queries | Magic at runtime (decorators, metadata) |
+| Schema lives next to the code | Another abstraction to learn |
+| Easy CRUD, hooks, soft delete | Complex queries still need raw SQL / QueryBuilder |
+
+> **Rule of thumb:** use the ORM for 90% of CRUD, drop down to **QueryBuilder** or raw SQL when you need joins, window functions, or fine-grained tuning.
+
+**Read more:**
+- [Wikipedia — Object–relational mapping](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping)
+- [Martin Fowler — ORM Hate](https://martinfowler.com/bliki/OrmHate.html) (a balanced critique — worth knowing the criticisms!)
 
 ---
 
-## 2. What is a DTO?
+## 2. Why TypeORM?
 
-A **Data Transfer Object (DTO)** is a class that describes the **shape of data crossing a boundary** — usually the HTTP boundary.
+TypeORM is the ORM Nest officially recommends in its docs. Reasons:
 
-Two reasons we use a class (not an `interface`):
+- **TypeScript-first** — built around decorators, plays well with `tsconfig.json`'s `experimentalDecorators` and `emitDecoratorMetadata`.
+- **Multi-database** — Postgres, MySQL, MariaDB, SQLite, MSSQL, Oracle, MongoDB.
+- **Active Record _and_ Data Mapper** patterns supported (we use Data Mapper here = `Repository<T>`).
+- **Migrations**, **query builder**, **relations**, **transactions**, **subscribers/hooks** out of the box.
+- First-class Nest integration via [`@nestjs/typeorm`](https://docs.nestjs.com/techniques/database).
 
-1. **Interfaces are erased at runtime.** TypeScript types disappear after compilation, so Nest cannot see them. A class survives compilation and can carry **decorators** (`@IsString`, `@IsEmail`, …) that `class-validator` reads at runtime.
-2. **A single source of truth.** The same class is used for typing the body, validating it, and (optionally) generating Swagger docs.
+Alternatives you may meet in real projects:
 
-### Naming convention used in this project
+| ORM | Notes |
+|-----|-------|
+| **Prisma** | Schema-first, modern, great DX. Migrations are easier than TypeORM's. |
+| **MikroORM** | Data Mapper + Unit of Work. Strong TypeScript story. |
+| **Sequelize** | Older, JS-first, less TS-friendly. |
+| **Drizzle** | Very thin, SQL-shaped, no decorators. |
 
-| File | Purpose |
-|------|---------|
-| `artist-create.dto.ts` | Body shape for `POST /artist` (create payload) |
-| `artist-update.dto.ts` | Body shape for `PUT/PATCH /artist/:id` (full / partial) |
-| `artist.dto.ts` | Server representation (`id` + create fields) — what the API returns |
-
-This split makes intent obvious: a client cannot send `id`, the server assigns it.
-
----
-
-## 3. Pipes — the two jobs
-
-A pipe in Nest has **two responsibilities**:
-
-1. **Transformation** — convert raw input into the type you want
-   `"42"` (string from URL) → `42` (number)
-2. **Validation** — reject input that doesn't satisfy the rules
-   `"abc"` for an integer field → `400 Bad Request`
-
-### Built-in pipes you should know
-
-| Pipe | What it does |
-|------|--------------|
-| `ParseIntPipe` | `"42"` → `42`, fails on `"abc"` |
-| `ParseFloatPipe` | `"3.14"` → `3.14` |
-| `ParseBoolPipe` | `"true"`/`"1"` → `true` |
-| `ParseUUIDPipe` | validates `:id` is a UUID v4 |
-| `ParseArrayPipe` | parses comma-separated query strings |
-| `ParseEnumPipe` | restricts a value to an enum |
-| `DefaultValuePipe` | provides a fallback if value is missing |
-| `ValidationPipe` | runs `class-validator` on a DTO instance |
-
-Example:
-
-```ts
-@Get(':id')
-getOne(@Param('id', ParseUUIDPipe) id: string) { ... }
-
-@Get()
-list(
-  @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-) { ... }
-```
-
-### Where pipes can be applied
-
-| Scope | How | When to use |
-|-------|-----|-------------|
-| **Parameter** | `@Param('id', ParseIntPipe)` | One specific argument |
-| **Method** | `@UsePipes(ValidationPipe)` on a handler | One endpoint |
-| **Controller** | `@UsePipes(ValidationPipe)` on a class | All endpoints in that controller |
-| **Global** | `app.useGlobalPipes(new ValidationPipe())` | The whole application — **what we do in this lesson** |
+For this lesson we stick with TypeORM because the rest of the course uses it.
 
 ---
 
-## 4. Global `ValidationPipe` configuration
+## 3. Setting up PostgreSQL
 
-In `main.ts` we register one pipe for the whole app:
+The connection in `src/db/database.module.ts` is hard-coded to:
 
-```ts
-app.useGlobalPipes(
-  new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-    transformOptions: { enableImplicitConversion: true },
-  }),
-);
+```
+host:     localhost
+port:     5433
+user:     postgres
+password: postgres
+database: music
 ```
 
-| Option | What it does |
-|--------|--------------|
-| `whitelist: true` | **Strips** properties from the payload that have no validation decorator. Prevents clients from sneaking extra fields into your database. |
-| `forbidNonWhitelisted: true` | Goes one step further — **rejects** the request (400) if it contains unknown fields. Great for strict APIs. |
-| `transform: true` | Turns plain JSON into an actual instance of the DTO class (`req.body instanceof CreateUserDto === true`). Required for `@Type()` to work and for `enableImplicitConversion`. |
-| `transformOptions.enableImplicitConversion: true` | Lets primitives auto-convert based on the TS type (`"25"` → `25` for a `number` field). Removes the need for `@Type(() => Number)` on basic types. |
+The fastest way to get a matching server running is Docker:
 
-### Whitelist in action
-
-DTO:
-```ts
-class CreateUserDto { @IsString() name!: string; }
+```bash
+docker run \
+  --name sedc-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=music \
+  -p 5433:5432 \
+  -d postgres:16
 ```
 
-Client sends:
-```json
-{ "name": "Ana", "isAdmin": true }
+Verify it's up:
+
+```bash
+docker ps                          # should show sedc-postgres listening on 0.0.0.0:5433
+psql -h localhost -p 5433 -U postgres -d music   # password: postgres
 ```
 
-| Setting | Result |
-|---------|--------|
-| no whitelist | `{ name: "Ana", isAdmin: true }` reaches the controller |
-| `whitelist: true` | `{ name: "Ana" }` — `isAdmin` is silently dropped |
-| `whitelist: true, forbidNonWhitelisted: true` | `400 Bad Request: property isAdmin should not exist` |
+> If you already have Postgres listening on `5432`, just change the `port` in `database.module.ts` — or use a GUI client like **TablePlus**, **Beekeeper Studio**, or **pgAdmin**.
+
+**Read more:**
+- [PostgreSQL docs](https://www.postgresql.org/docs/)
+- [Postgres Docker image](https://hub.docker.com/_/postgres)
 
 ---
 
-## 5. Validation with `class-validator`
+## 4. The Nest + TypeORM connection model
 
-`class-validator` is a third-party library that reads **decorators** at runtime to validate plain objects.
+Nest exposes TypeORM through one module: [`@nestjs/typeorm`](https://docs.nestjs.com/techniques/database). It has **two** static methods you need to remember:
 
-### Common decorators by category
-
-**Strings**
-`@IsString()` · `@IsEmail()` · `@IsUrl()` · `@IsUUID('4')` · `@Length(min, max)` · `@MinLength(n)` · `@Matches(/regex/)` · `@IsIn([...])`
-
-**Numbers**
-`@IsInt()` · `@IsNumber()` · `@IsPositive()` · `@Min(n)` · `@Max(n)`
-
-**Booleans / dates**
-`@IsBoolean()` · `@IsDate()` · `@IsISO8601()`
-
-**Arrays**
-`@IsArray()` · `@ArrayNotEmpty()` · `@ArrayMinSize(n)` · `@ArrayMaxSize(n)` · `@ArrayUnique()`
-Combine with `{ each: true }` on item-level rules: `@IsString({ each: true })`
-
-**Objects / nesting**
-`@IsObject()` · `@ValidateNested()` (needs `@Type(() => ChildDto)`)
-
-**Modifiers**
-`@IsOptional()` — skip validators below if the value is `undefined`/`null`.
-
-### Example used in this project
-
-`src/artist/dto/artist-create.dto.ts`:
-
-```ts
-export class ArtistCreateDto {
-  @IsString()
-  @Length(1, 120)
-  name!: string;
-
-  @IsIn(['rock', 'pop', 'jazz', 'hip-hop', 'classical', 'electronic'])
-  genre!: string;
-
-  @IsBoolean()
-  isActive!: boolean;
-
-  @ValidateNested()
-  @Type(() => ArtistProfileDto)
-  profile!: ArtistProfileDto;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1900)
-  @Max(new Date().getFullYear())
-  debutYear?: number;
-
-  @IsOptional()
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(5)
-  @ArrayUnique()
-  @IsString({ each: true })
-  @Length(2, 30, { each: true })
-  aliases?: string[];
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│  AppModule                                                  │
+│     └── DatabaseModule                                      │
+│           └── TypeOrmModule.forRoot({ type: 'postgres' })   │ ◀ creates the DataSource (the connection)
+│                                                             │
+│  ArtistModule                                               │
+│     └── TypeOrmModule.forFeature([Artist])                  │ ◀ registers Repository<Artist>
+│  SongModule                                                 │
+│     └── TypeOrmModule.forFeature([Song])                    │ ◀ registers Repository<Song>
+│  AlbumModule                                                │
+│     └── TypeOrmModule.forFeature([Album])                   │ ◀ registers Repository<Album>
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Things worth pointing out for students:
+### `TypeOrmModule.forRoot(...)`
 
-- The `!` (`name!:`) is a **TypeScript** assertion that the field will be set; it has nothing to do with validation. We use it because we initialize nothing here — the data comes from the request.
-- **Decorator order doesn't matter**, but reading them top-to-bottom helps humans.
-- `{ each: true }` makes a validator apply to every element of an array.
-- For nested objects you need **both** `@ValidateNested()` and `@Type(() => Child)`, otherwise `class-validator` doesn't know which class to instantiate for the inner object.
+Called **once**, in a module that's imported at the root (`AppModule`).
+It builds a single **`DataSource`** — TypeORM's name for an active connection pool — and makes it available everywhere.
 
----
-
-## 6. Transformation with `class-transformer`
-
-`ValidationPipe` builds a class instance from the request JSON, but only when `transform: true`.
-
-### Why transformation matters
-
-Without `transform`:
+See `src/db/database.module.ts`:
 
 ```ts
-@Body() body: CreateUserDto  // body is actually a plain object, not a class instance
-```
-
-With `transform: true`:
-
-```ts
-@Body() body: CreateUserDto  // body instanceof CreateUserDto === true
-```
-
-This is required for:
-
-- Default values declared in the class to apply
-- Methods on the DTO to be callable
-- `@Type(() => Date)` and other type hints to do their job
-
-### `@Type()` — telling class-transformer the runtime type
-
-TypeScript types disappear at runtime. `class-transformer` needs explicit hints for non-primitive types:
-
-```ts
-@Type(() => Date)
-@IsDate()
-releaseDate?: Date;
-
-@Type(() => AlbumEditionDto)
-@ValidateNested({ each: true })
-editions!: AlbumEditionDto[];
-```
-
-### `enableImplicitConversion`
-
-Allows automatic primitive conversion **based on the TypeScript type**:
-
-```ts
-class Query {
-  @IsInt() page!: number;     // "5" → 5 automatically
-  @IsBoolean() active!: boolean; // "true" → true automatically
-}
-```
-
-Useful for query strings and route params (always strings in HTTP).
-
----
-
-## 7. Reusing DTOs with `@nestjs/mapped-types`
-
-For PATCH endpoints we usually accept "any subset" of the create fields. Instead of writing a second DTO by hand, derive one:
-
-```ts
-import { PartialType } from '@nestjs/mapped-types';
-import { ArtistCreateDto } from './artist-create.dto';
-
-export class ArtistPartialUpdateDto extends PartialType(ArtistCreateDto) {}
-```
-
-`PartialType` produces a new class where every property becomes optional but **keeps all the validation decorators**.
-
-Other helpers:
-
-| Helper | What it does |
-|--------|--------------|
-| `PartialType(X)` | every field becomes optional |
-| `PickType(X, ['name','email'])` | only the listed fields |
-| `OmitType(X, ['password'])` | every field except the listed ones |
-| `IntersectionType(A, B)` | merges two DTOs |
-
-These keep your validation rules DRY.
-
----
-
-## 8. Error responses
-
-When validation fails the global pipe returns something like:
-
-```json
-{
-  "statusCode": 400,
-  "message": [
-    "name must be a string",
-    "genre must be one of: rock, pop, ..."
-  ],
-  "error": "Bad Request"
-}
-```
-
-`message` is an **array** — one entry per violated rule. This is perfect for showing inline errors in a frontend form.
-
-You can customize the response with `exceptionFactory`:
-
-```ts
-new ValidationPipe({
-  exceptionFactory: (errors) =>
-    new BadRequestException({
-      message: 'Invalid payload',
-      details: errors,
-    }),
+TypeOrmModule.forRoot({
+  type: 'postgres',
+  host: 'localhost',
+  port: 5433,
+  username: 'postgres',
+  password: 'postgres',
+  database: 'music',
+  autoLoadEntities: true,
+  synchronize: true,
 });
 ```
 
----
+Notable options:
 
-## 9. Writing a custom pipe (optional, for the curious)
+| Option | What it does |
+|--------|--------------|
+| `type` | Selects the driver. Needs the matching npm package (`pg` for Postgres). |
+| `host` / `port` / `username` / `password` / `database` | Connection coordinates. **Should come from env vars in real apps.** |
+| `entities: [Artist, Song]` | Manual list of entity classes. Skip this when using `autoLoadEntities`. |
+| `autoLoadEntities: true` | Each `forFeature([X])` call adds `X` to the connection. The recommended Nest pattern. |
+| `synchronize: true` | DDL is auto-adjusted to match your entities on every start. **DEV ONLY.** |
+| `logging: ['query', 'error']` | Prints SQL to the console — invaluable for learning. |
+| `ssl: { rejectUnauthorized: false }` | Needed for managed databases (Neon, Supabase, RDS). |
+| `namingStrategy` | Customize how class/property names become `snake_case` columns. |
 
-Pipes implement the `PipeTransform` interface:
+> **`synchronize: true`** is great while you're learning — change an entity, restart, and the table follows. It is also **dangerous in production** because it can drop columns and lose data. In production you ship **migrations**.
+
+### `TypeOrmModule.forFeature([Entity])`
+
+Called inside each **feature module** that wants to talk to its own entity. It registers a `Repository<Entity>` provider scoped to that module so you can `@InjectRepository(Entity)` it in services.
+
+See `src/album/album.module.ts`:
 
 ```ts
-import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
+@Module({
+  imports: [TypeOrmModule.forFeature([Album])],
+  controllers: [AlbumController],
+  providers: [AlbumService],
+})
+export class AlbumModule {}
+```
 
-@Injectable()
-export class TrimPipe implements PipeTransform<string, string> {
-  transform(value: string): string {
-    if (typeof value !== 'string') {
-      throw new BadRequestException('Expected string');
-    }
-    return value.trim();
-  }
+**Read more:**
+- [Nest — Database (TypeORM)](https://docs.nestjs.com/techniques/database)
+- [TypeORM — DataSource](https://typeorm.io/data-source)
+
+---
+
+## 5. Loading config from env (better than hard-coding)
+
+Hard-coded credentials are fine for the classroom; in real life use `@nestjs/config` so secrets live in `.env`, never in git:
+
+```ts
+// app.module.ts (excerpt — NOT in this lesson on purpose)
+ConfigModule.forRoot({ isGlobal: true }),
+TypeOrmModule.forRootAsync({
+  inject: [ConfigService],
+  useFactory: (cfg: ConfigService) => ({
+    type: 'postgres',
+    host: cfg.get('DB_HOST'),
+    port: cfg.getOrThrow<number>('DB_PORT'),
+    username: cfg.get('DB_USER'),
+    password: cfg.get('DB_PASSWORD'),
+    database: cfg.get('DB_NAME'),
+    autoLoadEntities: true,
+    synchronize: false,  // ← always false in prod
+  }),
+}),
+```
+
+**Read more:** [Nest — Configuration](https://docs.nestjs.com/techniques/configuration).
+
+---
+
+## 6. Entities — the decorator cheat sheet
+
+An **entity** is a TypeScript class with metadata that TypeORM turns into a table.
+
+```ts
+@Entity()
+export class Album {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ length: 200 })        title!: string;
+  @Column('uuid')                 artistId!: string;
+  @Column({ type: 'timestamptz', nullable: true }) releaseDate!: Date | null;
+  @CreateDateColumn() createdAt!: Date;
+  @UpdateDateColumn() updatedAt!: Date | null;
+  @DeleteDateColumn() deletedAt!: Date | null;
 }
 ```
 
-Use it: `@Param('name', TrimPipe) name: string`.
+### Class & primary key
 
-Custom pipes are the right tool when neither `ValidationPipe` nor a built-in `Parse*Pipe` fits — for example, parsing custom IDs, decoding base64, or normalizing input.
+| Decorator | What it does |
+|-----------|--------------|
+| `@Entity()` | Marks the class as a table. Default name = lowercase class name. Override: `@Entity('albums')`. |
+| `@PrimaryGeneratedColumn()` | Auto-incrementing integer PK. |
+| `@PrimaryGeneratedColumn('uuid')` | UUID v4 PK (safer for public APIs). |
+| `@PrimaryColumn()` | You assign the PK yourself (composite keys, natural keys). |
+
+### Regular columns — `@Column()` options
+
+| Option | Purpose | Example |
+|--------|---------|---------|
+| `type` | DB type override | `{ type: 'int' }`, `{ type: 'timestamptz' }`, `{ type: 'jsonb' }` |
+| `length` | `varchar` length | `{ length: 200 }` |
+| `nullable` | Allow `NULL` | `{ nullable: true }` |
+| `default` | DB-level default | `{ default: false }` |
+| `unique` | Add a UNIQUE constraint | `{ unique: true }` |
+| `name` | Custom column name | `{ name: 'release_date' }` |
+| `select: false` | Exclude from default SELECTs (passwords!) | `{ select: false }` |
+
+> Common types you'll meet in Postgres: `text`, `varchar`, `int`, `bigint`, `boolean`, `timestamptz`, `date`, `numeric`, `jsonb`, `uuid`, `enum`.
+
+### Audit & soft-delete columns (free goodies)
+
+| Decorator | Effect |
+|-----------|--------|
+| `@CreateDateColumn()` | Set automatically on first save. |
+| `@UpdateDateColumn()` | Refreshed automatically on every save after creation. |
+| `@DeleteDateColumn()` | Enables `repository.softDelete(id)` — sets a timestamp instead of deleting the row. Subsequent `find()`s skip it automatically. |
+| `@VersionColumn()` | Optimistic concurrency control — increments on each update. |
+
+### Relations (not used in this lesson, but you should know they exist)
+
+```ts
+@ManyToOne(() => Artist, (a) => a.albums) artist!: Artist;
+@OneToMany(() => Album, (a) => a.artist)  albums!: Album[];
+@OneToOne(() => Profile)                  @JoinColumn() profile!: Profile;
+@ManyToMany(() => Tag)                    @JoinTable()  tags!: Tag[];
+```
+
+> In this project we store `artistId` and `albumId` as plain `uuid` columns to keep CRUD focused on the basics. The next lesson will add real relations.
+
+**Read more:**
+- [TypeORM — Entities](https://typeorm.io/entities)
+- [TypeORM — Decorator reference](https://typeorm.io/decorator-reference)
+- [TypeORM — Relations](https://typeorm.io/relations)
 
 ---
 
-## 10. Folder map for this lesson
+## 7. The Repository pattern — `Repository<T>`
+
+Once an entity is registered with `forFeature(...)`, Nest can inject a typed repository into your service:
+
+```ts
+@Injectable()
+export class AlbumService {
+  constructor(
+    @InjectRepository(Album)
+    private readonly albumRepository: Repository<Album>,
+  ) {}
+}
+```
+
+`Repository<T>` is a fluent API for the 90% of day-to-day operations. Below is a *map* of the methods used in this project plus the ones you'll need most often in real life.
+
+### Reading
+
+```ts
+albumRepository.find();                           // all rows
+albumRepository.find({ take: 10, skip: 20 });     // paginate
+albumRepository.find({ where: { isExplicit: true }, order: { createdAt: 'DESC' } });
+albumRepository.findOneBy({ id });                // returns row | null
+albumRepository.findOne({ where: { id }, relations: { artist: true } });
+albumRepository.findOneOrFail({ where: { id } }); // throws EntityNotFoundError
+albumRepository.count({ where: { isExplicit: true } });
+albumRepository.findAndCount();                   // [rows, total]
+```
+
+### Writing
+
+```ts
+const entity  = repo.create(dto);                 // build instance, no DB yet
+const saved   = await repo.save(entity);          // INSERT (or UPDATE if PK set)
+await repo.insert(dto);                            // INSERT only, no SELECT back
+await repo.update(id, partial);                    // raw UPDATE (no hooks)
+await repo.upsert([dto], ['email']);               // INSERT … ON CONFLICT
+```
+
+### Deleting
+
+```ts
+await repo.softDelete(id);   // sets deletedAt, keeps row
+await repo.restore(id);      // un-soft-delete
+await repo.delete(id);       // hard DELETE (irreversible)
+```
+
+### `create()` vs `save()` — the one thing students always mix up
+
+- **`repository.create(plain)`** → returns a NEW instance of your entity class with the given fields. **Does not** touch the database.
+- **`repository.save(entity)`** → reads the entity's primary key:
+  - missing PK → SQL `INSERT`
+  - existing PK → SQL `UPDATE`
+
+The typical "create" handler is therefore:
+
+```ts
+const entity = this.repo.create(dto);     // hydrate + apply class defaults
+const saved  = await this.repo.save(entity); // INSERT
+return saved;
+```
+
+You **can** call `save(dto)` directly without `create`, but going through `create()` is the recommended pattern because it ensures the object is a true instance (lifecycle hooks fire, defaults apply, etc.).
+
+### Two ways to update (compare `AlbumService.update` vs `SongService.updateSong`)
+
+| Pattern | When to use |
+|---------|-------------|
+| Load entity → spread DTO → `save({...})` | You want to return the full new row, run hooks, and don't mind one extra SELECT. |
+| Guard exists → `repo.update(id, partial)` → reload | You want one fast UPDATE, no hooks. |
+
+Both are in this project on purpose so you can see the trade-off.
+
+**Read more:**
+- [TypeORM — Working with Repository](https://typeorm.io/working-with-repository)
+- [TypeORM — Find options](https://typeorm.io/find-options)
+
+---
+
+## 8. Soft delete vs hard delete
+
+Hard delete (`repo.delete(id)`):
+
+```sql
+DELETE FROM album WHERE id = $1;
+```
+
+Soft delete (`repo.softDelete(id)`, requires `@DeleteDateColumn`):
+
+```sql
+UPDATE album SET "deletedAt" = NOW() WHERE id = $1;
+-- Subsequent SELECTs add: AND "deletedAt" IS NULL
+```
+
+Why prefer soft delete?
+
+- **Undo** is one method call (`repo.restore(id)`).
+- **Audit trails** — you still know who/what existed.
+- **GDPR right-to-be-forgotten** with a grace period.
+- Foreign keys to "deleted" rows don't break.
+
+When to use hard delete: when you really must remove the data (compliance, PII purge, cost). Note: soft-deleted rows are still indexed, still counted in raw `COUNT(*)`, and still consume disk — you usually pair soft delete with a scheduled cleanup job.
+
+### Working with soft-deleted rows
+
+```ts
+repo.find({ withDeleted: true });   // include soft-deleted
+repo.find();                         // default: hides soft-deleted
+repo.restore(id);                    // unset deletedAt
+```
+
+---
+
+## 9. The `@InjectRepository(Entity)` decorator
+
+```ts
+constructor(
+  @InjectRepository(Album)
+  private readonly albumRepository: Repository<Album>,
+) {}
+```
+
+`@InjectRepository(X)` is just a thin wrapper around Nest's normal `@Inject('token')` — `@nestjs/typeorm` generates a unique provider token per entity. You don't need to know the token; the decorator handles it.
+
+You can only inject a repository for an entity that's been registered with `TypeOrmModule.forFeature([X])` **in the same module** (or one that re-exports `TypeOrmModule.forFeature([X])`).
+
+---
+
+## 10. Synchronize vs migrations
+
+| | `synchronize: true` | Migrations |
+|---|---|---|
+| When | Local dev, learning | Every other environment |
+| What it does | Auto-alters the schema to match your entities on app start | You explicitly write/generate SQL change files |
+| Risk | Can drop columns / data | Reviewable, reversible, versioned |
+| Speed | Instant feedback | Requires a generate + run step |
+
+Typical migration workflow (not done in this project, but **good to know**):
+
+```bash
+# 1. Tell TypeORM CLI where your DataSource lives (data-source.ts)
+# 2. Generate a migration from the diff between entities and DB
+typeorm migration:generate -d data-source.ts src/migrations/AddAlbumIndex
+
+# 3. Run pending migrations on the target DB
+typeorm migration:run -d data-source.ts
+
+# 4. Revert the last one if needed
+typeorm migration:revert -d data-source.ts
+```
+
+**Read more:**
+- [TypeORM — Migrations](https://typeorm.io/migrations)
+- [Nest — Migrations recipe](https://docs.nestjs.com/recipes/sql-typeorm) (note: docs are slightly behind, principles are the same)
+
+---
+
+## 11. QueryBuilder — when CRUD isn't enough
+
+For anything beyond simple CRUD (joins, aggregation, conditional SQL fragments) you drop into the **QueryBuilder**:
+
+```ts
+const result = await this.albumRepository
+  .createQueryBuilder('album')
+  .leftJoin('artist', 'artist', 'artist.id = album.artistId')
+  .where('album.isExplicit = :explicit', { explicit: true })
+  .andWhere('artist.genre IN (:...genres)', { genres: ['rock', 'jazz'] })
+  .orderBy('album.releaseDate', 'DESC')
+  .take(20)
+  .getMany();
+```
+
+**Read more:** [TypeORM — Query Builder](https://typeorm.io/select-query-builder).
+
+---
+
+## 12. Transactions
+
+When two writes must succeed or fail together, wrap them in a transaction:
+
+```ts
+import { DataSource } from 'typeorm';
+
+constructor(private readonly dataSource: DataSource) {}
+
+async transferOwnership(id: string, newArtistId: string) {
+  await this.dataSource.transaction(async (manager) => {
+    await manager.update(Album, id, { artistId: newArtistId });
+    await manager.insert(AuditLog, { albumId: id, action: 'transfer' });
+  });
+}
+```
+
+If the callback throws, both statements are rolled back.
+
+**Read more:** [TypeORM — Transactions](https://typeorm.io/transactions).
+
+---
+
+## 13. Folder map for this lesson
 
 | File | What to study |
 |------|---------------|
-| `src/main.ts` | Global `ValidationPipe` setup |
-| `src/artist/dto/artist-create.dto.ts` | Strings, enums, arrays, optional, nested validation |
-| `src/artist/dto/artist-update.dto.ts` | `PartialType` for PATCH |
-| `src/artist/dto/artist.dto.ts` | Extending a create DTO with `id` for responses |
-| `src/song/dto/song-create.dto.ts` | Array of UUIDs, integer ranges, default values |
-| `src/album/dto/album-create.dto.ts` | Nested array of objects with `@Type` + `@ValidateNested` |
-| `src/artist/artist.controller.ts` | `@Body`, `@Param`, `@Query` with DTOs |
-| `src/album/album.controller.ts` | Example of per-controller `@UsePipes` (commented) |
+| `src/db/database.module.ts` | `TypeOrmModule.forRoot` — connection options |
+| `src/album/album.module.ts` | `TypeOrmModule.forFeature([Album])` |
+| `src/album/album.entity.ts` | All the decorators in one place |
+| `src/album/album.service.ts` | `create` + `save`, `findOneBy`, "spread merge" update, `softDelete` |
+| `src/song/song.service.ts` | `findOne({ where })` and `update + reload` pattern |
+| `src/artist/artist.service.ts` | Whitelisting fields before `create`, PATCH flow |
+| `src/artist/artist.module.ts` | Exporting a service for cross-module use |
+| `src/app.module.ts` | How `DatabaseModule` plugs into the root |
 
 ---
 
-## 11. Try it yourself
-
-Run the app:
+## 14. Try it yourself
 
 ```bash
+# 1. Make sure Postgres is running on localhost:5433 (see section 3)
+docker start sedc-postgres || docker run --name sedc-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=music -p 5433:5432 -d postgres:16
+
+# 2. Install deps
 npm install
+
+# 3. Run with auto-reload — synchronize will create the tables on first start
 npm run start:dev
 ```
 
-Then poke the API and watch validation errors come back:
+Then exercise the API:
 
 ```bash
-# missing required field
-curl -X POST localhost:3000/artist \
+# Create an artist
+curl -X POST http://localhost:3000/artist \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{ "name": "Daft Punk", "genre": "electronic", "isActive": false, "profile": { "country": "FR" }, "debutYear": 1993 }'
 
-# wrong genre
-curl -X POST localhost:3000/artist \
-  -H "Content-Type: application/json" \
-  -d '{ "name": "X", "genre": "metal", "isActive": true, "profile": { "country": "MK" } }'
+# List them
+curl http://localhost:3000/artist
 
-# extra field (forbidNonWhitelisted)
-curl -X POST localhost:3000/artist \
+# Create an album linked to that artist's id
+curl -X POST http://localhost:3000/album \
   -H "Content-Type: application/json" \
-  -d '{ "name": "X", "genre": "rock", "isActive": true, "profile": { "country": "MK" }, "evil": "field" }'
+  -d '{ "title": "Discovery", "artistId": "<paste id here>", "releaseDate": "2001-03-12T00:00:00Z" }'
+
+# Soft delete it
+curl -X DELETE http://localhost:3000/album/<paste id>
+
+# Verify the row is hidden from /album but still in the DB:
+# (in psql:  SELECT id, title, "deletedAt" FROM album;)
 ```
 
-A complete Postman collection is also included: `SEDC_2026_Nest.postman_collection.json`.
+A Postman collection is also included: `SEDC_2026_Nest.postman_collection.json`.
 
 ---
 
-## 12. Exercises
+## 15. Exercises
 
-1. Add a `@IsHexColor()` field `themeColor` to `ArtistCreateDto` and make it optional.
-2. Use `PickType` to build a `ArtistRenameDto` that only contains `name`.
-3. Replace `@Param('id') id: string` with `@Param('id', ParseUUIDPipe) id: string` everywhere and observe the new error messages.
-4. Write a custom `LowercasePipe` and use it on the `genre` query parameter in `GET /artist/search`.
-5. Add a custom `exceptionFactory` so all validation errors return a `{ field, message }` shape.
+1. **Add an index.** Put `@Index()` on `Artist.genre` and watch what `synchronize: true` does to the schema.
+2. **Make `Song.durationSeconds` strictly positive** with a `@Check("durationSeconds > 0")` constraint.
+3. **Convert `Artist.genre` to a Postgres enum** using `@Column({ type: 'enum', enum: Genre })` and a `Genre` TS enum.
+4. **Add a real relation** between `Album` and `Artist` (`@ManyToOne` / `@OneToMany`) and fetch related data with `relations: { artist: true }`.
+5. **Switch `synchronize` to `false`** and create a migration that adds an `albumCount` column to `Artist`.
+6. **Write a paginated `findAll`** on `AlbumService` that accepts `page` and `pageSize` query params, returns `{ items, total, page, pageSize }`, and uses `findAndCount`.
+7. **Move DB credentials into `.env`** using `@nestjs/config` and `TypeOrmModule.forRootAsync`.
 
 ---
 
-## Further reading
+## 16. Further reading
 
-- [Pipes | NestJS](https://docs.nestjs.com/pipes)
-- [Validation | NestJS](https://docs.nestjs.com/techniques/validation)
-- [Mapped types | NestJS](https://docs.nestjs.com/openapi/mapped-types)
-- [class-validator](https://github.com/typestack/class-validator#validation-decorators) — full decorator reference
-- [class-transformer](https://github.com/typestack/class-transformer)
+### Official
+- [NestJS — Database (TypeORM)](https://docs.nestjs.com/techniques/database)
+- [NestJS — Configuration (`@nestjs/config`)](https://docs.nestjs.com/techniques/configuration)
+- [TypeORM — Documentation](https://typeorm.io/)
+- [TypeORM — Entities](https://typeorm.io/entities)
+- [TypeORM — Decorator reference](https://typeorm.io/decorator-reference)
+- [TypeORM — Repository API](https://typeorm.io/repository-api)
+- [TypeORM — Find options](https://typeorm.io/find-options)
+- [TypeORM — Relations](https://typeorm.io/relations)
+- [TypeORM — QueryBuilder](https://typeorm.io/select-query-builder)
+- [TypeORM — Migrations](https://typeorm.io/migrations)
+- [TypeORM — Transactions](https://typeorm.io/transactions)
+- [PostgreSQL documentation](https://www.postgresql.org/docs/)
+
+### Tutorials & background
+- [NestJS + TypeORM CRUD tutorial (NestJS Docs Recipe)](https://docs.nestjs.com/recipes/sql-typeorm)
+- [PostgreSQL data types you'll actually use](https://www.postgresql.org/docs/current/datatype.html)
+- [Martin Fowler — Patterns of Enterprise Application Architecture (Repository, Data Mapper)](https://martinfowler.com/eaaCatalog/)
+- [Wikipedia — Repository pattern](https://en.wikipedia.org/wiki/Domain-driven_design#Building_blocks)
+
+### Tools
+- [TablePlus](https://tableplus.com/) — friendly PostgreSQL GUI
+- [Beekeeper Studio](https://www.beekeeperstudio.io/) — free open-source DB client
+- [pgAdmin](https://www.pgadmin.org/) — the classic PG admin UI
+
+---
 
 ## License
 

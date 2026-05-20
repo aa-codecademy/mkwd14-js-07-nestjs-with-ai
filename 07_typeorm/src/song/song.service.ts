@@ -1,3 +1,19 @@
+/**
+ * Song service — CRUD persistence for `Song` rows via TypeORM.
+ *
+ * This file deliberately uses TWO different update strategies so you can
+ * compare them side-by-side with `AlbumService.update`:
+ *
+ *   `AlbumService.update`  →  load + spread merge + `save({...})`
+ *   `SongService.updateSong` →  guard + `update(id, partial)` + reload
+ *
+ * Both reach the same end state; the trade-offs are:
+ *
+ *   `save()`     – fires lifecycle hooks, returns the hydrated entity,
+ *                  but issues an extra SELECT to load the original row.
+ *   `update()`   – single round-trip UPDATE, faster, no hooks, returns only
+ *                  an `UpdateResult` so you must reload if you need the row.
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
 import { SongCreateDto } from './dto/song-create.dto';
@@ -13,10 +29,22 @@ export class SongService {
     private readonly logger: LoggerService,
   ) {}
 
+  /** List all songs (paginate me in production). */
   getSongs(): Promise<Song[]> {
     return this.songRepository.find();
   }
 
+  /**
+   * `findOne({ where: { id } })` is the verbose form of `findOneBy({ id })`.
+   * Both produce the same SQL — `findOne` is useful when you also want to
+   * include `relations`, `select`, `order`, etc., in the same call:
+   *
+   *   this.songRepository.findOne({
+   *     where: { id },
+   *     relations: { album: true },   // eager-load related rows
+   *     select: { id: true, title: true },
+   *   });
+   */
   async getSongById(id: string): Promise<Song> {
     this.logger.debug('getSongById:', id);
     const song = await this.songRepository.findOne({
@@ -30,12 +58,18 @@ export class SongService {
     return song;
   }
 
+  /**
+   * Stubbed out for now — kept as a hint for the next lesson where you'll
+   * model a real ManyToMany relation between Song and Artist using
+   * `@JoinTable()` and `@ManyToMany()`.
+   */
   getSongsByArtistId(artistId: string): any {
     // return this.songs.filter((song) =>
     //   song.featuringArtistsId.includes(artistId),
     // );
   }
 
+  /** Same create-and-save pattern as `AlbumService.create`. */
   async createSong(body: SongCreateDto): Promise<Song> {
     const newSong = this.songRepository.create(body);
 
@@ -44,6 +78,17 @@ export class SongService {
     return createdSong;
   }
 
+  /**
+   * The "update + reload" variant:
+   *
+   *   1. `getSongById(id)` → throws 404 if not found (guard clause).
+   *   2. `repository.update(id, body)` issues a single `UPDATE` statement.
+   *      It does NOT call entity hooks and does NOT return the new row.
+   *   3. `findOneBy({ id })` → fetch the fresh state to return to the client.
+   *
+   * Choose this style when you care about UPDATE efficiency and don't need
+   * lifecycle hooks. Choose the `save({...spread})` style when you do.
+   */
   async updateSong(id: string, body: SongUpdateDto): Promise<Song | null> {
     await this.getSongById(id);
 
@@ -52,6 +97,7 @@ export class SongService {
     return this.songRepository.findOneBy({ id });
   }
 
+  /** Soft delete — `deletedAt` set to NOW(), row excluded from future `find()`s. */
   async deleteSong(id: string): Promise<void> {
     await this.songRepository.softDelete(id);
   }
