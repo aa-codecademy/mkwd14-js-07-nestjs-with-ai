@@ -17,9 +17,11 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Album } from '../album/album.entity';
 
 @Entity()
 export class Artist {
@@ -53,6 +55,9 @@ export class Artist {
     nullable: true,
   })
   debutYear!: number | null;
+
+  @OneToMany(() => Album, (album) => album.artist)
+  albums!: Album[];
 
   /** Auto-managed audit columns — see album.entity.ts for details. */
   @CreateDateColumn()

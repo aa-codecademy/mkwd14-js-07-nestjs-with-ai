@@ -32,24 +32,8 @@ export class SongCreateDto {
   @Length(1, 200)
   title!: string;
 
-  /**
-   * Array of UUIDs.
-   *
-   * `@ArrayNotEmpty()` is stricter than `@ArrayMinSize(1)` semantically:
-   * it explicitly rejects empty arrays. Pair it with:
-   *   - `@ArrayMaxSize(5)` — cap the size
-   *   - `@ArrayUnique()`   — no duplicate ids
-   *   - `@IsUUID('4', { each: true })` — every item must be a v4 UUID
-   *
-   * Note the `{ each: true }` modifier — without it the rule would be
-   * applied to the array reference itself rather than to each element.
-   */
-  @IsArray()
-  @ArrayNotEmpty()
-  @ArrayMaxSize(5)
-  @ArrayUnique()
-  @IsUUID('4', { each: true })
-  featuringArtistsId!: string[];
+  @IsUUID()
+  artistId!: string;
 
   /**
    * Integer between 1 second and 5 minutes (300s).

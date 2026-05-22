@@ -13,8 +13,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AlbumCreateDto } from './dto/album-create.dto';
 import { AlbumUpdateDto } from './dto/album-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Album } from './album.entity';
+
 import type { Repository } from 'typeorm';
+import { Artist } from '../artist/artist.entity';
+import { Album } from './album.entity';
 
 @Injectable()
 export class AlbumService {
@@ -29,6 +31,8 @@ export class AlbumService {
      */
     @InjectRepository(Album)
     private readonly albumRepository: Repository<Album>,
+    @InjectRepository(Artist)
+    private readonly artistRepository: Repository<Artist>,
   ) {}
 
   /**
@@ -45,6 +49,14 @@ export class AlbumService {
    * want INSERT semantics and don't need the saved instance back.
    */
   async create(body: AlbumCreateDto): Promise<Album> {
+    const artist = await this.artistRepository.findOneBy({ id: body.artistId });
+
+    if (!artist) {
+      throw new NotFoundException(
+        `Artist with ID: ${body.artistId} doesn't exist.`,
+      );
+    }
+
     const newAlbum = this.albumRepository.create(body);
 
     const createdAlbum = await this.albumRepository.save(newAlbum);

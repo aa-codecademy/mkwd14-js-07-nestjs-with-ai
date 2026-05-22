@@ -16,9 +16,11 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Artist } from '../artist/artist.entity';
 
 /**
  * `@Entity()` marks the class as a database table.
@@ -50,14 +52,6 @@ export class Album {
   title!: string;
 
   /**
-   * A foreign-key-like column stored as `uuid`. In a more advanced setup you'd
-   * model this with a real relation (see ManyToOne in the README) but here we
-   * keep it as a plain column to focus on basic CRUD.
-   */
-  @Column('uuid')
-  artistId!: string;
-
-  /**
    * `timestamptz` = "timestamp with time zone" in PostgreSQL — the right choice
    * for storing real-world points in time. `nullable: true` allows `NULL` so a
    * release date can be unknown.
@@ -67,6 +61,17 @@ export class Album {
     nullable: true,
   })
   releaseDate!: Date | null;
+
+  /**
+   * A foreign-key-like column stored as `uuid`. In a more advanced setup you'd
+   * model this with a real relation (see ManyToOne in the README) but here we
+   * keep it as a plain column to focus on basic CRUD.
+   */
+  @Column('uuid')
+  artistId!: string;
+
+  @ManyToOne(() => Artist, (artist) => artist.albums)
+  artist!: Artist;
 
   /**
    * `@CreateDateColumn()` — set automatically by TypeORM the first time the row
