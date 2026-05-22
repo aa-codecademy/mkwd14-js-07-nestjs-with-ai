@@ -22,6 +22,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Album } from '../album/album.entity';
+import { Song } from '../song/song.entity';
 
 @Entity()
 export class Artist {
@@ -55,6 +56,9 @@ export class Artist {
     nullable: true,
   })
   debutYear!: number | null;
+
+  @OneToMany(() => Song, (song) => song.artist)
+  songs!: Song[];
 
   @OneToMany(() => Album, (album) => album.artist)
   albums!: Album[];

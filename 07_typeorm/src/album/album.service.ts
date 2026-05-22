@@ -71,7 +71,11 @@ export class AlbumService {
    * automatically excluded thanks to `@DeleteDateColumn`.
    */
   findAll(): Promise<Album[]> {
-    return this.albumRepository.find();
+    return this.albumRepository.find({
+      relations: {
+        artist: true,
+      },
+    });
   }
 
   /**
@@ -85,7 +89,13 @@ export class AlbumService {
    *   - `findOneOrFail({ where: { id } })`        throws `EntityNotFoundError`
    */
   async findOne(id: string): Promise<Album> {
-    const album = await this.albumRepository.findOneBy({ id });
+    const album = await this.albumRepository.findOne({
+      where: { id },
+      relations: {
+        artist: true,
+        songs: true,
+      },
+    });
 
     if (!album) {
       throw new NotFoundException(`Album with id ${id} not found`);
@@ -107,6 +117,18 @@ export class AlbumService {
    *                       only tells you how many rows changed.
    */
   async update(id: string, body: AlbumUpdateDto): Promise<Album> {
+    if (body.artistId) {
+      const artist = await this.artistRepository.findOneBy({
+        id: body.artistId,
+      });
+
+      if (!artist) {
+        throw new NotFoundException(
+          `Artist with ID: ${body.artistId} doesn't exist.`,
+        );
+      }
+    }
+
     const album = await this.findOne(id);
 
     const updatedAlbum = await this.albumRepository.save({

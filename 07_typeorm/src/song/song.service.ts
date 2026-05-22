@@ -21,17 +21,27 @@ import { SongUpdateDto } from './dto/song-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from './song.entity';
 import type { Repository } from 'typeorm';
+import { Album } from '../album/album.entity';
+import { Artist } from '../artist/artist.entity';
 
 @Injectable()
 export class SongService {
   constructor(
     @InjectRepository(Song) private readonly songRepository: Repository<Song>,
+    @InjectRepository(Album)
+    private readonly albumRepository: Repository<Album>,
+    @InjectRepository(Artist)
+    private readonly artistRepository: Repository<Artist>,
     private readonly logger: LoggerService,
   ) {}
 
   /** List all songs (paginate me in production). */
   getSongs(): Promise<Song[]> {
-    return this.songRepository.find();
+    return this.songRepository.find({
+      relations: {
+        album: true,
+      },
+    });
   }
 
   /**
@@ -71,6 +81,26 @@ export class SongService {
 
   /** Same create-and-save pattern as `AlbumService.create`. */
   async createSong(body: SongCreateDto): Promise<Song> {
+    if (body.albumId) {
+      const album = await this.albumRepository.findOneBy({ id: body.albumId });
+
+      if (!album) {
+        throw new NotFoundException(
+          `Album with ID: ${body.albumId} doesn't exist`,
+        );
+      }
+    }
+
+    const artist = await this.artistRepository.findOneBy({
+      id: body.artistId,
+    });
+
+    if (!artist) {
+      throw new NotFoundException(
+        `Artist with ID: ${body.artistId} doesn't exist`,
+      );
+    }
+
     const newSong = this.songRepository.create(body);
 
     const createdSong = await this.songRepository.save(newSong);
@@ -90,6 +120,28 @@ export class SongService {
    * lifecycle hooks. Choose the `save({...spread})` style when you do.
    */
   async updateSong(id: string, body: SongUpdateDto): Promise<Song | null> {
+    if (body.albumId) {
+      const album = await this.albumRepository.findOneBy({ id: body.albumId });
+
+      if (!album) {
+        throw new NotFoundException(
+          `Album with ID: ${body.albumId} doesn't exist`,
+        );
+      }
+    }
+
+    if (!body.artistId) {
+      const artist = await this.artistRepository.findOneBy({
+        id: body.artistId,
+      });
+
+      if (!artist) {
+        throw new NotFoundException(
+          `Artist with ID: ${body.artistId} doesn't exist`,
+        );
+      }
+    }
+
     await this.getSongById(id);
 
     await this.songRepository.update(id, body);

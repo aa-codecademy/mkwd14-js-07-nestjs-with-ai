@@ -15,9 +15,12 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Album } from '../album/album.entity';
+import { Artist } from '../artist/artist.entity';
 
 @Entity()
 export class Song {
@@ -48,6 +51,12 @@ export class Song {
   })
   isExplicit!: boolean;
 
+  @Column('uuid')
+  artistId!: string;
+
+  @ManyToOne(() => Artist, (artist) => artist.songs)
+  artist!: Artist;
+
   // @Column('uuid')
   /**
    * Nullable UUID — a song may exist without belonging to an album yet
@@ -56,6 +65,9 @@ export class Song {
    */
   @Column({ type: 'uuid', nullable: true })
   albumId!: string;
+
+  @ManyToOne(() => Album, (album) => album.songs)
+  album!: Album;
 
   @CreateDateColumn()
   createdAt!: Date;

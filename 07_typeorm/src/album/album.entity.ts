@@ -17,10 +17,12 @@ import {
   DeleteDateColumn,
   Entity,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Artist } from '../artist/artist.entity';
+import { Song } from '../song/song.entity';
 
 /**
  * `@Entity()` marks the class as a database table.
@@ -61,6 +63,9 @@ export class Album {
     nullable: true,
   })
   releaseDate!: Date | null;
+
+  @OneToMany(() => Song, (song) => song.album)
+  songs!: Song[];
 
   /**
    * A foreign-key-like column stored as `uuid`. In a more advanced setup you'd
