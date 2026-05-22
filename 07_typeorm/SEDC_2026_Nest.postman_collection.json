@@ -808,32 +808,6 @@
           "name": "Artist",
           "item": [
             {
-              "name": "Search Artists",
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "localhost:3000/artist/search",
-                  "host": [
-                    "localhost"
-                  ],
-                  "port": "3000",
-                  "path": [
-                    "artist",
-                    "search"
-                  ],
-                  "query": [
-                    {
-                      "key": "genre",
-                      "value": "hip hop",
-                      "disabled": true
-                    }
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
               "name": "Get Artists",
               "request": {
                 "method": "GET",
@@ -869,7 +843,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "c1ac96e7-d9b6-4672-9427-1cc44192b723"
+                      "value": "7a8e67dc-9ef0-430c-b16f-4f94273e58d2"
                     }
                   ]
                 }
@@ -883,7 +857,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"name\": \"Vlado Janevski\",\n    \"genre\": \"pop\",\n    \"debutYear\": 1970,\n    \"isActive\": true,\n    \"aliases\": [\"Vlado\"],\n    \"profile\": {\n        \"country\": \"USA\",\n        \"city\": \"Detroit City\",\n        \"bookingEmail\": \"email@email.com\",\n        \"website\": \"https://eminem.com\"\n    }\n}",
+                  "raw": "{\n    \"name\": \"Dr. Dre\",\n    \"genre\": \"hip-hop\",\n    \"debutYear\": 1980,\n    \"isActive\": true,\n    \"aliases\": [\"Dre\", \"Doctor\"],\n    \"profile\": {\n        \"country\": \"USA\",\n        \"city\": \"LA\"\n    }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1060,7 +1034,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"title\": \"Without me\",\n    \"durationSeconds\": 180,\n    \"featuringArtistsId\": [\"c8fc109a-1ff8-4211-9400-04a53b318196\"],\n    \"isExplicit\": true\n}",
+                  "raw": "{\n    \"title\": \"Slim Shady\",\n    \"durationSeconds\": 190,\n    \"artistId\": \"aede5baa-e9ab-354e-9498-f3f007c89efe\",\n    \"isExplicit\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1141,7 +1115,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "4276c559-d94f-4a38-94f6-7378fd3191fe"
+                      "value": "aede5baa-e9ab-454e-9498-f3f007c89efe"
                     }
                   ]
                 }
@@ -1189,7 +1163,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "48fd424d-b871-4955-8c4e-0ebafbfceff1"
+                      "value": "cd9f46e5-eba4-4d74-bb1e-c0919f3b7b94"
                     }
                   ]
                 }
@@ -1203,7 +1177,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"title\": \"Real Slim Shady\",\n    \"artistId\": \"c44bbc47-caee-4e88-9132-077270c09ce7\",\n    \"releaseDate\": \"2026-05-18T18:35:02.136Z\",\n    \"editions\": [\n        {\n            \"format\": \"cassete\",\n            \"copies\": 1000,\n            \"isLimited\": true\n        },\n        {\n            \"format\": \"cassete\",\n            \"copies\": 1000,\n            \"isLimited\": true\n        }\n    ]\n}",
+                  "raw": "{\n    \"title\": \"Get rich or die trying\",\n    \"artistId\": \"7a8e67dc-9ef0-430c-b16f-4f94273e58d2\",\n    \"releaseDate\": \"2026-05-18T18:35:02.136Z\",\n    \"editions\": [\n        {\n            \"format\": \"cassete\",\n            \"copies\": 1000,\n            \"isLimited\": true\n        },\n        {\n            \"format\": \"vinyl\",\n            \"copies\": 2000,\n            \"isLimited\": false\n        }\n    ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1250,7 +1224,7 @@
                   "variable": [
                     {
                       "key": "id",
-                      "value": "48fd424d-b871-4955-8c4e-0ebafbfceff1"
+                      "value": "cd9f46e5-eba4-4d74-bb1e-c0919f3b7b94"
                     }
                   ]
                 }

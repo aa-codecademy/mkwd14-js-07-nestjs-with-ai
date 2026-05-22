@@ -20,7 +20,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Album } from '../album/album.entity';
-import { Artist } from '../artist/artist.entity';
+import { Artist } from '../artist/entitites/artist.entity';
 
 @Entity()
 export class Song {

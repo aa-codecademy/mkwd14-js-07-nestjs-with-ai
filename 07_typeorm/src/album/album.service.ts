@@ -15,7 +15,7 @@ import { AlbumUpdateDto } from './dto/album-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import type { Repository } from 'typeorm';
-import { Artist } from '../artist/artist.entity';
+import { Artist } from '../artist/entitites/artist.entity';
 import { Album } from './album.entity';
 
 @Injectable()

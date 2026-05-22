@@ -32,7 +32,7 @@ import {
 import { ArtistService } from './artist.service';
 import { ArtistCreateDto } from './dto/artist-create.dto';
 import { ArtistPartialUpdateDto } from './dto/artist-update.dto';
-import type { Artist } from './artist.entity';
+import type { Artist } from './entitites/artist.entity';
 
 @Controller('artist')
 export class ArtistController {

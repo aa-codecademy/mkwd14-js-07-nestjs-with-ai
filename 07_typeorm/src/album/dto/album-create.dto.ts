@@ -33,7 +33,7 @@ import {
  *
  * Used as the element type of `AlbumCreateDto.editions[]`.
  */
-class AlbumEditionDto {
+export class AlbumEditionDto {
   @IsString()
   @Length(2, 40)
   format!: string;

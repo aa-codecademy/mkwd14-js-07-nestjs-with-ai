@@ -21,8 +21,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Artist } from '../artist/artist.entity';
+import { Artist } from '../artist/entitites/artist.entity';
 import { Song } from '../song/song.entity';
+import type { AlbumEditionDto } from './dto/album-create.dto';
 
 /**
  * `@Entity()` marks the class as a database table.
@@ -63,6 +64,12 @@ export class Album {
     nullable: true,
   })
   releaseDate!: Date | null;
+
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+  })
+  editions!: AlbumEditionDto[];
 
   @OneToMany(() => Song, (song) => song.album)
   songs!: Song[];

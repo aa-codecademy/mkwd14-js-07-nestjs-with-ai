@@ -20,6 +20,7 @@ import {
   IsArray,
   IsBoolean,
   IsEmail,
+  IsEnum,
   IsIn,
   IsInt,
   IsObject,
@@ -31,6 +32,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { Genre } from '../../common/types/genre';
 
 /**
  * Nested DTO used as the type of `ArtistCreateDto.profile`.
@@ -67,9 +69,8 @@ export class ArtistCreateDto {
   @Length(1, 120)
   name!: string;
 
-  @IsString()
-  @IsIn(['rock', 'pop', 'jazz', 'hip-hop', 'classical', 'electronic'])
-  genre!: string;
+  @IsEnum(Genre)
+  genre!: Genre;
 
   @IsBoolean()
   isActive!: boolean;

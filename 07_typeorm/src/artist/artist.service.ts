@@ -24,8 +24,9 @@ import { LoggerService } from '../logger/logger.service';
 import type { ArtistCreateDto } from './dto/artist-create.dto';
 import type { ArtistPartialUpdateDto } from './dto/artist-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Artist } from './artist.entity';
+import { Artist } from './entitites/artist.entity';
 import type { Repository } from 'typeorm';
+import { ArtistProfile } from './entitites/artist-profile.entity';
 
 @Injectable()
 export class ArtistService {
@@ -37,6 +38,8 @@ export class ArtistService {
      */
     @InjectRepository(Artist)
     private readonly artistRepository: Repository<Artist>,
+    @InjectRepository(ArtistProfile)
+    private readonly artistProfileRepository: Repository<ArtistProfile>,
     private readonly logger: LoggerService,
   ) {}
 
@@ -46,12 +49,19 @@ export class ArtistService {
    * In a real app you would add pagination (`take`/`skip`) here.
    */
   getAllArtists(): Promise<Artist[]> {
-    return this.artistRepository.find();
+    return this.artistRepository.find({
+      relations: {
+        profile: true,
+      },
+    });
   }
 
   /** Throws Nest `NotFoundException` → HTTP 404 via the default exception layer. */
   async getArtistById(id: string): Promise<Artist> {
-    const artist = await this.artistRepository.findOneBy({ id });
+    const artist = await this.artistRepository.findOne({
+      where: { id },
+      relations: { profile: true },
+    });
 
     if (!artist) {
       throw new NotFoundException(`Artist with ID ${id} not found`);
@@ -67,16 +77,20 @@ export class ArtistService {
    * through, it would never reach the database.
    */
   async createArtist(body: ArtistCreateDto): Promise<Artist> {
-    const newArtist = this.artistRepository.create({
-      name: body.name,
-      genre: body.genre,
-      isActive: body.isActive,
-      debutYear: body.debutYear,
-    });
+    const { profile, ...restOfBody } = body;
+
+    const newArtist = this.artistRepository.create(restOfBody);
 
     const savedArtist = await this.artistRepository.save(newArtist);
 
-    return savedArtist;
+    const newArtistProfile = this.artistProfileRepository.create(profile);
+
+    await this.artistProfileRepository.save({
+      ...newArtistProfile,
+      artistId: savedArtist.id,
+    });
+
+    return this.getArtistById(savedArtist.id);
   }
 
   /** PUT semantics — replace entire entity except the stable primary key from the URL. */

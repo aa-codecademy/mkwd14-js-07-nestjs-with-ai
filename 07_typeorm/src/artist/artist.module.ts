@@ -22,10 +22,11 @@ import { Module } from '@nestjs/common';
 import { ArtistController } from './artist.controller';
 import { ArtistService } from './artist.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Artist } from './artist.entity';
+import { Artist } from './entitites/artist.entity';
+import { ArtistProfile } from './entitites/artist-profile.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Artist])],
+  imports: [TypeOrmModule.forFeature([Artist, ArtistProfile])],
   controllers: [ArtistController],
   providers: [ArtistService],
   exports: [ArtistService],

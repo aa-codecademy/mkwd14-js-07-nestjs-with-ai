@@ -18,11 +18,14 @@ import {
   DeleteDateColumn,
   Entity,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Album } from '../album/album.entity';
-import { Song } from '../song/song.entity';
+import { Album } from '../../album/album.entity';
+import { Song } from '../../song/song.entity';
+import { ArtistProfile } from './artist-profile.entity';
+import { Genre } from '../../common/types/genre';
 
 @Entity()
 export class Artist {
@@ -39,8 +42,8 @@ export class Artist {
    *   `@Column({ type: 'enum', enum: Genre })`
    * which gives DB-level validation in addition to your DTO rules.
    */
-  @Column({ length: 30 })
-  genre!: string;
+  @Column({ type: 'enum', enum: Genre, nullable: true })
+  genre!: Genre;
 
   /** `boolean` column. Type is inferred from the TS field type when not given. */
   @Column()
@@ -57,11 +60,17 @@ export class Artist {
   })
   debutYear!: number | null;
 
+  @Column({ type: 'simple-array', nullable: true })
+  aliases!: string[] | null;
+
   @OneToMany(() => Song, (song) => song.artist)
   songs!: Song[];
 
   @OneToMany(() => Album, (album) => album.artist)
   albums!: Album[];
+
+  @OneToOne(() => ArtistProfile, (profile) => profile.artist)
+  profile!: ArtistProfile;
 
   /** Auto-managed audit columns — see album.entity.ts for details. */
   @CreateDateColumn()
