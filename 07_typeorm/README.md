@@ -269,7 +269,7 @@ export class Album {
 | `@DeleteDateColumn()` | Enables `repository.softDelete(id)` — sets a timestamp instead of deleting the row. Subsequent `find()`s skip it automatically. |
 | `@VersionColumn()` | Optimistic concurrency control — increments on each update. |
 
-### Relations (not used in this lesson, but you should know they exist)
+### Relations — quick preview
 
 ```ts
 @ManyToOne(() => Artist, (a) => a.albums) artist!: Artist;
@@ -278,7 +278,7 @@ export class Album {
 @ManyToMany(() => Tag)                    @JoinTable()  tags!: Tag[];
 ```
 
-> In this project we store `artistId` and `albumId` as plain `uuid` columns to keep CRUD focused on the basics. The next lesson will add real relations.
+This project uses real relations (`@OneToMany`, `@ManyToOne`, `@OneToOne`). The next section is a deep dive into how they work.
 
 **Read more:**
 - [TypeORM — Entities](https://typeorm.io/entities)
@@ -287,7 +287,284 @@ export class Album {
 
 ---
 
-## 7. The Repository pattern — `Repository<T>`
+## 7. Relations — modeling associations between tables
+
+Relations are how you tell TypeORM "this entity is connected to that one". They turn into foreign keys in SQL and into navigable object properties in TypeScript.
+
+### 7.1 The four relation types
+
+| Decorator | Cardinality | Example in this project |
+|-----------|-------------|-------------------------|
+| `@OneToOne` | 1 ↔ 1 | `Artist` ↔ `ArtistProfile` |
+| `@OneToMany` / `@ManyToOne` | 1 ↔ N | `Artist` ↔ `Song`, `Artist` ↔ `Album`, `Album` ↔ `Song` |
+| `@ManyToMany` | N ↔ N | not used here — see "Further reading" |
+
+### 7.2 The data model used in this project
+
+```
+                        ┌──────────────────┐
+                        │  ArtistProfile   │
+                        │ (1:1 inverse 👇) │
+                        └─────────▲────────┘
+                                  │ @JoinColumn (FK lives here)
+                                  │
+   ┌────────────────────────┐    @OneToOne                    ┌────────┐
+   │         Artist         │◀──────────────                  │  Song  │
+   │ ────────────────────── │                                 │ ────── │
+   │  songs   @OneToMany ───┼──────@ManyToOne──── artist ──── │ artist │
+   │  albums  @OneToMany ───┼──────@ManyToOne──── artist ──── │ ...    │
+   │  profile @OneToOne ◀───┼  (inverse)                      │        │
+   └────────────────────────┘                                 │ album  │ ◀── @ManyToOne
+                                                              │ ...    │
+                          ┌────────┐                          └────┬───┘
+                          │ Album  │                               │
+                          │ ────── │                               │
+                          │ artist │── @ManyToOne ── Artist        │
+                          │ songs  │── @OneToMany ────────────────▶│
+                          └────────┘
+```
+
+### 7.3 Owning side vs inverse side
+
+Every bidirectional relation has two sides:
+
+- **Owning side** — the side that stores the foreign key column in the database.
+- **Inverse side** — the side that *navigates* to the related entity but stores no FK.
+
+| Relation | Owning side (has FK + decorator) | Inverse side (no FK) |
+|----------|----------------------------------|----------------------|
+| `@OneToOne` | side with `@JoinColumn()` | the other side |
+| `@OneToMany` ↔ `@ManyToOne` | always the `@ManyToOne` side | always the `@OneToMany` side |
+| `@ManyToMany` | side with `@JoinTable()` | the other side |
+
+This is why all our `@OneToMany` decorators in `Artist` look "empty" — they have no DB column. The actual FK lives on `Song.artistId` / `Album.artistId`.
+
+```ts
+// artist.entity.ts (INVERSE side — no FK, just a virtual list)
+@OneToMany(() => Song, (song) => song.artist)
+songs!: Song[];
+
+// song.entity.ts (OWNING side — has the FK column)
+@Column('uuid')
+artistId!: string;
+
+@ManyToOne(() => Artist, (artist) => artist.songs)
+artist!: Artist;
+```
+
+### 7.4 `@ManyToOne` / `@OneToMany` — one-to-many in detail
+
+The most common relation. Used three times in this project:
+
+| Parent (1) | Child (N) | Files |
+|------------|-----------|-------|
+| `Artist` | `Song` | `Song.artist` is `@ManyToOne`, `Artist.songs` is `@OneToMany` |
+| `Artist` | `Album` | `Album.artist` is `@ManyToOne`, `Artist.albums` is `@OneToMany` |
+| `Album` | `Song` | `Song.album` is `@ManyToOne`, `Album.songs` is `@OneToMany` |
+
+Notice how `Song` has TWO `@ManyToOne` relations — to `Artist` AND to `Album`. A child entity can have any number of parents.
+
+#### Why we keep an explicit FK column
+
+We declare `@Column('uuid') artistId!: string;` next to `@ManyToOne(() => Artist, …)`. We could omit the column — TypeORM would create one automatically — but keeping it explicit has real benefits:
+
+- ✅ You can write `body.artistId = '…'` from a controller without loading the full `Artist` entity.
+- ✅ You can filter: `find({ where: { artistId } })` without a JOIN.
+- ✅ The schema is obvious from reading the file.
+
+#### Useful `@ManyToOne` options
+
+```ts
+@ManyToOne(() => Artist, (a) => a.albums, {
+  onDelete: 'CASCADE',     // delete albums when the artist is deleted
+  onUpdate: 'CASCADE',     // update FK when the parent PK changes (rare)
+  nullable: false,         // FK column is NOT NULL
+  eager: true,             // always load the artist when finding albums
+  lazy: false,             // see 7.7 for lazy relations
+})
+artist!: Artist;
+```
+
+### 7.5 `@OneToOne` — one-to-one in detail
+
+Used between `Artist` and `ArtistProfile`. Profiles are extra metadata that not every artist will have, so we keep them in their own table.
+
+```ts
+// artist-profile.entity.ts (OWNING side — has FK + @JoinColumn)
+@Column('uuid')
+artistId!: string;
+
+@OneToOne(() => Artist, (artist) => artist.profile)
+@JoinColumn()
+artist!: Artist;
+
+// artist.entity.ts (INVERSE side)
+@OneToOne(() => ArtistProfile, (profile) => profile.artist)
+profile!: ArtistProfile;
+```
+
+**Rule of thumb:** put `@JoinColumn()` on the OPTIONAL side — the side that "depends on" the other. An artist exists with or without a profile, but a profile cannot exist without an artist, so the FK lives on `ArtistProfile`.
+
+### 7.6 `@ManyToMany` — many-to-many (not in this project)
+
+Use when both sides can have many of the other (e.g. an `Author` writes many `Book`s, and a `Book` can have many `Author`s). TypeORM creates a hidden **junction table** for you.
+
+```ts
+// book.entity.ts
+@ManyToMany(() => Author, (a) => a.books)
+@JoinTable()      // ONE side must declare @JoinTable() — that's the owner
+authors!: Author[];
+
+// author.entity.ts (inverse — no @JoinTable)
+@ManyToMany(() => Book, (b) => b.authors)
+books!: Book[];
+```
+
+The next exercise on `Song.featuringArtists` is a perfect candidate for `@ManyToMany`.
+
+### 7.7 Loading related rows — `relations`, `eager`, lazy
+
+By default, related entities are NOT loaded — relation fields come back `undefined`. Three ways to populate them:
+
+#### A. Per-query (recommended)
+
+```ts
+this.albumRepository.findOne({
+  where: { id },
+  relations: { artist: true, songs: true },
+});
+```
+
+You see this everywhere in our services (`AlbumService.findOne`, `ArtistService.getAllArtists`, etc.). Each `relations` flag adds a LEFT JOIN — request only what the endpoint needs.
+
+You can nest:
+
+```ts
+relations: { artist: { profile: true } }   // album → artist → profile
+```
+
+#### B. Always load (`eager: true`)
+
+Set on the relation decorator. Loaded on EVERY find, no opt-out. Use sparingly — eager relations can balloon your queries.
+
+```ts
+@ManyToOne(() => Artist, (a) => a.albums, { eager: true })
+artist!: Artist;
+```
+
+#### C. Lazy relations (advanced)
+
+Type the field as `Promise<T>` and TypeORM defers the load until you `await` the property. Powerful but can hide N+1 query problems — use only if you understand the trade-off.
+
+```ts
+@ManyToOne(() => Artist, (a) => a.albums, { lazy: true })
+artist!: Promise<Artist>;
+// usage:
+const artist = await album.artist;
+```
+
+> **Performance tip:** loading multiple relations with `relations` works for small graphs, but for complex reads (joins, aggregates, custom selects) reach for the QueryBuilder (see section 12).
+
+### 7.8 Saving related entities
+
+#### Pattern 1 — set the FK column directly (simplest)
+
+What our code does today:
+
+```ts
+const album = this.albumRepository.create({
+  title: dto.title,
+  artistId: dto.artistId,   // just an FK string
+});
+await this.albumRepository.save(album);
+```
+
+#### Pattern 2 — assign the related instance
+
+```ts
+const artist = await this.artistRepository.findOneBy({ id: dto.artistId });
+const album  = this.albumRepository.create({ title: dto.title, artist });
+await this.albumRepository.save(album);
+```
+
+#### Pattern 3 — cascade insert
+
+Lets `save()` insert the parent AND the related rows in one call:
+
+```ts
+@OneToMany(() => Song, (s) => s.album, { cascade: ['insert', 'update'] })
+songs!: Song[];
+```
+
+```ts
+await this.albumRepository.save({
+  title: 'Discovery',
+  artistId: '…',
+  songs: [{ title: 'One More Time', durationSeconds: 320 }],   // inserted automatically
+});
+```
+
+> Use cascade carefully — convenient, but easy to delete more than you intended. Most teams prefer explicit child writes.
+
+### 7.9 Delete behavior — `onDelete`
+
+The `onDelete` option on `@ManyToOne` (and `@OneToOne`) maps directly to a Postgres `ON DELETE` rule on the FK constraint:
+
+| Value | What happens when the parent is deleted |
+|-------|-----------------------------------------|
+| `NO ACTION` (default) | DB error — the parent can't be deleted while children exist. |
+| `CASCADE` | Children are deleted too. |
+| `SET NULL` | Children's FK column becomes `NULL` (column must be nullable). |
+| `RESTRICT` | Same as `NO ACTION` for most drivers — refuses the delete. |
+| `DEFAULT` | Children's FK is set to its column default. |
+
+> Soft delete + cascade interaction: cascading does not currently chain through `softDelete()` in TypeORM — you delete children explicitly or fall back to a service-level loop / a custom subscriber.
+
+### 7.10 Cross-entity FK validation in services
+
+When a controller passes you an FK (`artistId`, `albumId`), validate it before inserting:
+
+```ts
+// album.service.ts
+const artist = await this.artistRepository.findOneBy({ id: body.artistId });
+if (!artist) {
+  throw new NotFoundException(`Artist with ID: ${body.artistId} doesn't exist.`);
+}
+```
+
+Why bother when Postgres will reject the bad FK anyway?
+
+- 🟢 The user gets a clean **404 Not Found** instead of a generic 500.
+- 🟢 The error happens BEFORE the row is created — no half-written state.
+- 🟢 You avoid leaking SQL error text to clients.
+
+Pattern in this project:
+- `AlbumService` injects `Repository<Artist>` to validate `artistId`.
+- `SongService` injects both `Repository<Artist>` and `Repository<Album>` to validate both FKs.
+
+You'll also see this in `AlbumModule.imports` and `SongModule.imports` — the entity is registered in `forFeature` of every module that needs to read it. That's allowed; the connection is shared.
+
+### 7.11 Common pitfalls
+
+- **Forgot `@JoinColumn()` on a `@OneToOne`?** TypeORM doesn't know which side owns the FK and you'll get cryptic errors at startup.
+- **Both sides have `@JoinTable()` on a `@ManyToMany`?** Only ONE side may. Pick one.
+- **Circular imports between entity files?** Use the lazy import form: `() => Artist` instead of importing the type. The arrow function is what makes it work.
+- **Relation field is `undefined` after `find()`.** You forgot to add `relations: { foo: true }`. Plain `find()` does NOT load relations by default.
+- **N+1 queries when iterating.** If you `forEach` over a list and lazy-load `await x.artist` inside the loop, you're doing N database round-trips. Eager-load with `relations` instead.
+- **`onDelete: 'CASCADE'` ≠ `softDelete()` cascade.** Cascading FK deletes only fire on hard `DELETE`s.
+
+**Read more:**
+- [TypeORM — Relations overview](https://typeorm.io/relations)
+- [TypeORM — One-to-one relations](https://typeorm.io/one-to-one-relations)
+- [TypeORM — Many-to-one / one-to-many](https://typeorm.io/many-to-one-one-to-many-relations)
+- [TypeORM — Many-to-many relations](https://typeorm.io/many-to-many-relations)
+- [TypeORM — Eager and lazy relations](https://typeorm.io/eager-and-lazy-relations)
+- [TypeORM — Relations FAQ](https://typeorm.io/relations-faq)
+- [PostgreSQL — Foreign keys](https://www.postgresql.org/docs/current/tutorial-fk.html)
+
+---
+
+## 8. The Repository pattern — `Repository<T>`
 
 Once an entity is registered with `forFeature(...)`, Nest can inject a typed repository into your service:
 
@@ -366,7 +643,7 @@ Both are in this project on purpose so you can see the trade-off.
 
 ---
 
-## 8. Soft delete vs hard delete
+## 9. Soft delete vs hard delete
 
 Hard delete (`repo.delete(id)`):
 
@@ -400,7 +677,7 @@ repo.restore(id);                    // unset deletedAt
 
 ---
 
-## 9. The `@InjectRepository(Entity)` decorator
+## 10. The `@InjectRepository(Entity)` decorator
 
 ```ts
 constructor(
@@ -415,7 +692,7 @@ You can only inject a repository for an entity that's been registered with `Type
 
 ---
 
-## 10. Synchronize vs migrations
+## 11. Synchronize vs migrations
 
 | | `synchronize: true` | Migrations |
 |---|---|---|
@@ -444,7 +721,7 @@ typeorm migration:revert -d data-source.ts
 
 ---
 
-## 11. QueryBuilder — when CRUD isn't enough
+## 12. QueryBuilder — when CRUD isn't enough
 
 For anything beyond simple CRUD (joins, aggregation, conditional SQL fragments) you drop into the **QueryBuilder**:
 
@@ -463,7 +740,7 @@ const result = await this.albumRepository
 
 ---
 
-## 12. Transactions
+## 13. Transactions
 
 When two writes must succeed or fail together, wrap them in a transaction:
 
@@ -486,22 +763,26 @@ If the callback throws, both statements are rolled back.
 
 ---
 
-## 13. Folder map for this lesson
+## 14. Folder map for this lesson
 
 | File | What to study |
 |------|---------------|
 | `src/db/database.module.ts` | `TypeOrmModule.forRoot` — connection options |
-| `src/album/album.module.ts` | `TypeOrmModule.forFeature([Album])` |
-| `src/album/album.entity.ts` | All the decorators in one place |
-| `src/album/album.service.ts` | `create` + `save`, `findOneBy`, "spread merge" update, `softDelete` |
-| `src/song/song.service.ts` | `findOne({ where })` and `update + reload` pattern |
-| `src/artist/artist.service.ts` | Whitelisting fields before `create`, PATCH flow |
-| `src/artist/artist.module.ts` | Exporting a service for cross-module use |
 | `src/app.module.ts` | How `DatabaseModule` plugs into the root |
+| `src/album/album.entity.ts` | `@Entity`, `@Column`, audit columns, `jsonb`, `@ManyToOne` to Artist, `@OneToMany` to Songs |
+| `src/album/album.module.ts` | `TypeOrmModule.forFeature([Album, Artist])` — registering a read-only repo for FK validation |
+| `src/album/album.service.ts` | `create` + `save`, `findOne` with relations, "spread merge" update, `softDelete`, FK validation |
+| `src/song/song.entity.ts` | Two `@ManyToOne` relations side by side (required + optional) |
+| `src/song/song.module.ts` | Three repos in one `forFeature(...)` |
+| `src/song/song.service.ts` | `findOne({ where, relations })` and `update + reload` pattern |
+| `src/artist/entitites/artist.entity.ts` | Postgres `enum` column, `simple-array`, `@OneToMany` × 2, inverse `@OneToOne` |
+| `src/artist/entitites/artist-profile.entity.ts` | Owning `@OneToOne` with `@JoinColumn` |
+| `src/artist/artist.module.ts` | Exporting a service for cross-module use, two entities under one module |
+| `src/artist/artist.service.ts` | Two-table create flow, eager-loading the profile relation |
 
 ---
 
-## 14. Try it yourself
+## 15. Try it yourself
 
 ```bash
 # 1. Make sure Postgres is running on localhost:5433 (see section 3)
@@ -541,19 +822,21 @@ A Postman collection is also included: `SEDC_2026_Nest.postman_collection.json`.
 
 ---
 
-## 15. Exercises
+## 16. Exercises
 
 1. **Add an index.** Put `@Index()` on `Artist.genre` and watch what `synchronize: true` does to the schema.
 2. **Make `Song.durationSeconds` strictly positive** with a `@Check("durationSeconds > 0")` constraint.
-3. **Convert `Artist.genre` to a Postgres enum** using `@Column({ type: 'enum', enum: Genre })` and a `Genre` TS enum.
-4. **Add a real relation** between `Album` and `Artist` (`@ManyToOne` / `@OneToMany`) and fetch related data with `relations: { artist: true }`.
-5. **Switch `synchronize` to `false`** and create a migration that adds an `albumCount` column to `Artist`.
-6. **Write a paginated `findAll`** on `AlbumService` that accepts `page` and `pageSize` query params, returns `{ items, total, page, pageSize }`, and uses `findAndCount`.
-7. **Move DB credentials into `.env`** using `@nestjs/config` and `TypeOrmModule.forRootAsync`.
+3. **Add `onDelete: 'CASCADE'`** to `Song.album` so deleting an album cleans up its songs. Verify the SQL change with `psql \d song`.
+4. **Wrap `ArtistService.createArtist` in a transaction** using `dataSource.transaction(...)` so the artist + profile commit or roll back together.
+5. **Add a `@ManyToMany` between `Song` and `Artist`** for "featuring" artists. Add `@JoinTable()` on the `Song` side and update the Song create flow to accept an array of artist IDs.
+6. **Eager-load `Artist.profile`** with `{ eager: true }` and remove the explicit `relations: { profile: true }` from `getAllArtists`. Compare the SQL with the logger.
+7. **Switch `synchronize` to `false`** and create a migration that adds an `albumCount` column to `Artist`.
+8. **Write a paginated `findAll`** on `AlbumService` that accepts `page` and `pageSize` query params, returns `{ items, total, page, pageSize }`, and uses `findAndCount`.
+9. **Move DB credentials into `.env`** using `@nestjs/config` and `TypeOrmModule.forRootAsync`.
 
 ---
 
-## 16. Further reading
+## 17. Further reading
 
 ### Official
 - [NestJS — Database (TypeORM)](https://docs.nestjs.com/techniques/database)

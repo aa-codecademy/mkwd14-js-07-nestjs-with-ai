@@ -31,6 +31,12 @@ export class AlbumService {
      */
     @InjectRepository(Album)
     private readonly albumRepository: Repository<Album>,
+    /**
+     * Read-only `Repository<Artist>` used purely to validate that the
+     * `artistId` provided by the client refers to an existing artist before
+     * inserting the album. We don't write to it — writes still belong to
+     * `ArtistService` over in `ArtistModule`.
+     */
     @InjectRepository(Artist)
     private readonly artistRepository: Repository<Artist>,
   ) {}
@@ -38,10 +44,13 @@ export class AlbumService {
   /**
    * Create + persist pattern (preferred for inserts):
    *
-   *   1. `repository.create(plainObject)` builds an entity INSTANCE in memory.
+   *   1. Validate cross-entity FK (`artistId` must point to a real artist).
+   *      We do this BEFORE creating the row so the API returns a clean 404
+   *      instead of bubbling a Postgres FK violation up as a 500.
+   *   2. `repository.create(plainObject)` builds an entity INSTANCE in memory.
    *      It does NOT touch the database. It also fills in defaults declared on
    *      the entity, runs `@BeforeInsert` hooks, etc.
-   *   2. `repository.save(entity)` runs the actual SQL `INSERT` (or `UPDATE`
+   *   3. `repository.save(entity)` runs the actual SQL `INSERT` (or `UPDATE`
    *      if the entity already has a primary key).
    *
    * `save` is "smart": it issues an INSERT for new rows and an UPDATE for
@@ -65,9 +74,12 @@ export class AlbumService {
   }
 
   /**
-   * `find()` with no arguments returns ALL rows — fine for a small demo,
-   * but in production you should always paginate (`.find({ take, skip })`)
-   * or use `.findAndCount()` to also get a total. Soft-deleted rows are
+   * `find()` with `relations: { artist: true }` performs a LEFT JOIN under
+   * the hood and hydrates `album.artist` for every row. Without this option
+   * the relation field is `undefined` even though the FK column is present.
+   *
+   * In production you should also paginate (`.find({ take, skip })`) or use
+   * `.findAndCount()` to also get a total. Soft-deleted rows are
    * automatically excluded thanks to `@DeleteDateColumn`.
    */
   findAll(): Promise<Album[]> {
@@ -79,14 +91,17 @@ export class AlbumService {
   }
 
   /**
-   * `findOneBy({ id })` returns `null` when nothing matches (older TypeORM
-   * versions returned `undefined`). We translate that into Nest's
-   * `NotFoundException`, which the framework turns into an HTTP 404 with a
-   * structured error body.
+   * `findOne({ where, relations })` returns the album AND eagerly loads
+   * `artist` and `songs`. Each relation flag adds a JOIN, so request only
+   * what the endpoint actually needs.
+   *
+   * Returns `null` when nothing matches (older TypeORM versions returned
+   * `undefined`). We translate that into Nest's `NotFoundException`, which
+   * the framework turns into an HTTP 404 with a structured error body.
    *
    * Alternatives you'll see in the wild:
-   *   - `findOne({ where: { id } })`              same thing, verbose form
-   *   - `findOneOrFail({ where: { id } })`        throws `EntityNotFoundError`
+   *   - `findOneBy({ id })`                   shorthand, no relations option
+   *   - `findOneOrFail({ where: { id } })`    throws `EntityNotFoundError`
    */
   async findOne(id: string): Promise<Album> {
     const album = await this.albumRepository.findOne({
@@ -106,6 +121,7 @@ export class AlbumService {
 
   /**
    * "Spread merge" update pattern:
+   *   - if the client is changing `artistId`, verify the new artist exists
    *   - load the existing entity
    *   - spread the partial DTO over it
    *   - hand the merged object to `save()`, which detects the PK and UPDATEs.

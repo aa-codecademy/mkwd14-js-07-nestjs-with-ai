@@ -65,23 +65,67 @@ export class Album {
   })
   releaseDate!: Date | null;
 
+  /**
+   * `jsonb` column — stores arbitrary JSON natively in PostgreSQL.
+   *
+   * Use it when:
+   *   - the shape of the data varies row to row,
+   *   - you don't need to JOIN against this data,
+   *   - you need fast indexed JSON queries (`jsonb` supports GIN indexes
+   *     and operators like `->`, `->>`, `@>`).
+   *
+   * Trade-off vs. a child table: you cannot enforce FK constraints inside
+   * JSON, validation is YOUR responsibility (we use the DTO for that — see
+   * `AlbumEditionDto` in `dto/album-create.dto.ts`).
+   *
+   * Read more: https://www.postgresql.org/docs/current/datatype-json.html
+   */
   @Column({
     type: 'jsonb',
     nullable: true,
   })
   editions!: AlbumEditionDto[];
 
+  /**
+   * `@OneToMany(() => Song, song => song.album)` — the "many" side of the
+   * Album↔Song relation lives in `Song.album`. This decorator is the INVERSE
+   * side and stores NO column on the album table; it just lets you do:
+   *
+   *     albumRepository.findOne({ where: { id }, relations: { songs: true } })
+   *
+   * to get an album with all its tracks loaded. The actual foreign key lives
+   * on the `song` table (see `Song.albumId`).
+   */
   @OneToMany(() => Song, (song) => song.album)
   songs!: Song[];
 
   /**
-   * A foreign-key-like column stored as `uuid`. In a more advanced setup you'd
-   * model this with a real relation (see ManyToOne in the README) but here we
-   * keep it as a plain column to focus on basic CRUD.
+   * Plain UUID column that ALSO acts as the foreign key for the relation
+   * declared just below. Keeping the FK column explicit (instead of letting
+   * `@ManyToOne` create a hidden `artistId` column) is useful because:
+   *   - we can write `body.artistId` from the controller without loading the
+   *     full Artist entity,
+   *   - it's easy to filter by `where: { artistId }` without joining,
+   *   - it makes the schema obvious to anyone reading the code.
    */
   @Column('uuid')
   artistId!: string;
 
+  /**
+   * `@ManyToOne(() => Artist, artist => artist.albums)` — many albums can
+   * belong to one artist. This is the OWNING side of the relation and the
+   * one that contributes the foreign-key column. TypeORM will:
+   *   - reuse our `artistId` column as the FK (because the names line up), or
+   *   - create one named `artistId` automatically if we hadn't.
+   *
+   * The arrow function is a "lazy import" — it defers resolving `Artist`
+   * until runtime so circular imports between entity files don't blow up.
+   *
+   * Useful options you can pass as a 3rd argument:
+   *   - `{ onDelete: 'CASCADE' }`  → delete albums when the artist is deleted
+   *   - `{ eager: true }`          → always load the artist with the album
+   *   - `{ nullable: false }`      → make the FK column NOT NULL
+   */
   @ManyToOne(() => Artist, (artist) => artist.albums)
   artist!: Artist;
 

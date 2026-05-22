@@ -8,10 +8,11 @@ This folder collects all course homeworks. Each one builds on the previous lesso
 
 ## 📋 List of homeworks
 
-| #   | Homework                                                | Builds on lessons                                    | Topic                                                                       |
-| --- | ------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
-| 1   | [Pet Adoption Center API](./HOMEWORK_1.md)              | `02_nest_intro` → `04_providers_di`                  | Modules, controllers, routing, services, dependency injection, in-memory state |
-| 2   | [Pet Adoption Center API — DTOs & Validation](./HOMEWORK_2.md) | Homework 1 + `05_modules_structure` + `06_dtos_pipes` | DTOs, class-validator, class-transformer, global `ValidationPipe`, pipes    |
+| #   | Homework                                                         | Builds on lessons                                     | Topic                                                                                                                          |
+| --- | ---------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | [Pet Adoption Center API](./HOMEWORK_1.md)                       | `02_nest_intro` → `04_providers_di`                   | Modules, controllers, routing, services, dependency injection, in-memory state                                                 |
+| 2   | [Pet Adoption Center API — DTOs & Validation](./HOMEWORK_2.md)   | Homework 1 + `05_modules_structure` + `06_dtos_pipes` | DTOs, class-validator, class-transformer, global `ValidationPipe`, pipes                                                       |
+| 3   | [Pet Adoption Center API — TypeORM & Relations](./HOMEWORK_3.md) | Homework 2 + `07_typeorm`                             | PostgreSQL, TypeORM entities & repositories, `@OneToOne` / `@OneToMany` / `@ManyToOne` / `@ManyToMany`, cascades, transactions |
 
 ---
 
@@ -41,6 +42,21 @@ Extends Homework 1 with the validation layer added in lesson `06_dtos_pipes`:
 - Negative-test cases proving validation actually rejects bad input
 
 You will practice: **DTOs**, **validation**, **transformation**, **pipes**, and **mapped-types** helpers (`PartialType`).
+
+### Homework 3 — Pet Adoption Center API + TypeORM & Relations
+
+Replaces the in-memory store with a real **PostgreSQL** database via TypeORM and grows the model into a small graph using every relation type from lesson `07_typeorm`:
+
+- Pets persisted as TypeORM entities with `@PrimaryGeneratedColumn('uuid')` and audit columns
+- New entities for **Shelter**, **MedicalRecord**, **Tag**, **Adopter**, and **Adoption**
+- All four relation styles: `@OneToOne` (Pet ↔ MedicalRecord), `@OneToMany` / `@ManyToOne` (Pet ↔ Shelter), `@ManyToMany` (Pet ↔ Tag)\*, and an explicit join entity (Pet ↔ Adopter via `Adoption`)
+- Cross-entity validation, cascades, and conflict handling (404s for missing related ids, 409s for duplicates and adoption conflicts)
+- Transactional adopt / return flow that updates the pet **and** the adoption record atomically\*
+- Endpoints that return the related graph eagerly (a pet response includes its shelter, medical record, tags, and current adoption)
+
+You will practice: **TypeORM entities**, **`Repository<T>`**, **relations**, **eager vs lazy loading**, **cascades**, **transactions**, and modeling a real domain across multiple modules.
+
+Requirements marked with asterisk `*` can be done after we learn about those topics. Feel free to start with what you know at this moment, there are multiple requirements and this homework should take some time for you to complete it.
 
 ---
 

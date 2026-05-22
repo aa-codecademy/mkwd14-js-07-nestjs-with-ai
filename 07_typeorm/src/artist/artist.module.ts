@@ -1,22 +1,26 @@
 /**
  * Feature module for artist use-cases.
  *
- * Important architecture rule:
- * - This module owns ArtistController + ArtistService.
- * - Other modules should consume ArtistService through `exports`, not by re-declaring
- *   ArtistService in their own `providers`.
+ * Owns TWO entities:
+ *   - `Artist`         — the core record
+ *   - `ArtistProfile`  — extra metadata (1:1 with Artist), see
+ *                        `entitites/artist-profile.entity.ts`
  *
- * Why `TypeOrmModule.forFeature([Artist])`?
- *   - It declares this entity at the module level so the connection (created by
- *     `DatabaseModule.forRoot`) knows about it and creates a repository for it.
- *   - It makes `Repository<Artist>` available for injection inside this module.
- *     `ArtistService` claims it with `@InjectRepository(Artist)`.
+ * Both are registered together in a single `forFeature(...)` call so the
+ * matching `Repository<Artist>` and `Repository<ArtistProfile>` are
+ * available for injection in `ArtistService`. The service writes to both
+ * inside `createArtist()` to keep the artist and its profile in sync.
  *
  * Why `exports: [ArtistService]`?
- *   - Services are scoped to the module that declares them. `SongModule` needs
- *     to use `ArtistService`, so we expose it. NOTE: we do NOT need to export
- *     `TypeOrmModule.forFeature` because the repository is an implementation
- *     detail — consumers go through the service, not the repository.
+ *   - Services are scoped to the module that declares them. Other modules
+ *     (e.g. `SongModule`) need to use `ArtistService`, so we expose it.
+ *   - We do NOT export the repositories — they're an implementation detail.
+ *     Consumers should go through the service, not the raw repository.
+ *
+ * Important architecture rule:
+ *   - This module is the SINGLE WRITER for the `artist` and `artist_profile`
+ *     tables. Other modules may register a read-only `Repository<Artist>`
+ *     for FK existence checks (see `AlbumModule`), but mutations stay here.
  */
 import { Module } from '@nestjs/common';
 import { ArtistController } from './artist.controller';

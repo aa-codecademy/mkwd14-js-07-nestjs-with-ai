@@ -27,15 +27,28 @@ import { Artist } from '../artist/entitites/artist.entity';
 @Injectable()
 export class SongService {
   constructor(
+    /** Owned repository — this service is the single writer for `song`. */
     @InjectRepository(Song) private readonly songRepository: Repository<Song>,
+    /**
+     * Read-only `Repository<Album>` for FK existence checks. Writes to the
+     * `album` table go through `AlbumService` in `AlbumModule`.
+     */
     @InjectRepository(Album)
     private readonly albumRepository: Repository<Album>,
+    /**
+     * Read-only `Repository<Artist>` for FK existence checks. Writes to the
+     * `artist` table go through `ArtistService`.
+     */
     @InjectRepository(Artist)
     private readonly artistRepository: Repository<Artist>,
     private readonly logger: LoggerService,
   ) {}
 
-  /** List all songs (paginate me in production). */
+  /**
+   * List all songs with their parent album eagerly loaded.
+   * `relations: { album: true }` adds a LEFT JOIN to `album`.
+   * (Paginate me in production.)
+   */
   getSongs(): Promise<Song[]> {
     return this.songRepository.find({
       relations: {
@@ -51,7 +64,7 @@ export class SongService {
    *
    *   this.songRepository.findOne({
    *     where: { id },
-   *     relations: { album: true },   // eager-load related rows
+   *     relations: { album: true, artist: true },  // eager-load related rows
    *     select: { id: true, title: true },
    *   });
    */
@@ -79,7 +92,16 @@ export class SongService {
     // );
   }
 
-  /** Same create-and-save pattern as `AlbumService.create`. */
+  /**
+   * Same create-and-save pattern as `AlbumService.create`, with two FK guards:
+   *
+   *   - `albumId` is OPTIONAL, so we only check it when the client sent one.
+   *   - `artistId` is REQUIRED — every song must be performed by an artist.
+   *
+   * Doing these checks in the service (instead of relying on the DB FK error)
+   * lets us return clean 404 responses instead of letting Postgres errors
+   * bubble up as 500s.
+   */
   async createSong(body: SongCreateDto): Promise<Song> {
     if (body.albumId) {
       const album = await this.albumRepository.findOneBy({ id: body.albumId });
@@ -111,13 +133,20 @@ export class SongService {
   /**
    * The "update + reload" variant:
    *
-   *   1. `getSongById(id)` → throws 404 if not found (guard clause).
-   *   2. `repository.update(id, body)` issues a single `UPDATE` statement.
+   *   1. Verify any FK fields the client is changing (album/artist exist).
+   *   2. `getSongById(id)` → throws 404 if the song itself doesn't exist.
+   *   3. `repository.update(id, body)` issues a single `UPDATE` statement.
    *      It does NOT call entity hooks and does NOT return the new row.
-   *   3. `findOneBy({ id })` → fetch the fresh state to return to the client.
+   *   4. `findOneBy({ id })` → fetch the fresh state to return to the client.
    *
    * Choose this style when you care about UPDATE efficiency and don't need
    * lifecycle hooks. Choose the `save({...spread})` style when you do.
+   *
+   * NOTE: the `if (!body.artistId)` block below is intentionally checking
+   * "no artistId provided" before validating it — a quirk left as-is per the
+   * project rules. In a typical app you'd mirror the album guard:
+   * `if (body.artistId) { … }` to validate ONLY when the client is changing
+   * the artist.
    */
   async updateSong(id: string, body: SongUpdateDto): Promise<Song | null> {
     if (body.albumId) {

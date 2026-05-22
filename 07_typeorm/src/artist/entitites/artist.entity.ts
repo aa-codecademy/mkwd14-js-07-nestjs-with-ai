@@ -1,12 +1,18 @@
 /**
  * Artist entity — maps to the `artist` table.
  *
- * Read the `album.entity.ts` file first; it explains the role of every decorator
- * you see here in more detail. This file shows two extras:
+ * Read `album.entity.ts` first; it explains the role of common decorators in
+ * more detail. This file is the most "feature-rich" entity in the project and
+ * adds:
  *
- *   - `@Column({ length: 30 })`  → a shorter `varchar` for the genre slug
- *   - `@Column({ type: 'int', nullable: true })` → an optional integer column
- *     for an artist's debut year (some artists may not have one set).
+ *   - a Postgres `enum` column (`genre`)
+ *   - a `simple-array` column (`aliases`)
+ *   - TWO `@OneToMany` relations  (Artist → Song, Artist → Album)
+ *   - ONE `@OneToOne` relation    (Artist → ArtistProfile)
+ *
+ * Every relation declared here is the INVERSE side: it stores no column on
+ * the `artist` table, it just lets you navigate the graph in code, e.g.
+ * `artist.songs`, `artist.albums`, `artist.profile`.
  *
  * The `!` on every field is a TypeScript "definite assignment assertion". It
  * tells the compiler "trust me, this will be initialized" — TypeORM (or our
@@ -38,9 +44,19 @@ export class Artist {
   name!: string;
 
   /**
-   * Stored as `varchar(30)`. In a richer model you could use a Postgres `enum`:
-   *   `@Column({ type: 'enum', enum: Genre })`
-   * which gives DB-level validation in addition to your DTO rules.
+   * Postgres `enum` column.
+   *
+   * `{ type: 'enum', enum: Genre }` tells TypeORM to:
+   *   1. CREATE TYPE "artist_genre_enum" AS ENUM ('rock', 'pop', …)
+   *   2. use that type for this column
+   *
+   * Benefits over a plain `varchar`:
+   *   - Database-level validation: invalid values are rejected by Postgres.
+   *   - Smaller storage and faster comparisons than text.
+   *   - Self-documenting — the schema lists allowed values.
+   *
+   * Caveat: adding new enum values needs an `ALTER TYPE … ADD VALUE …`
+   * migration in production (you can't just edit the TS enum and ship).
    */
   @Column({ type: 'enum', enum: Genre, nullable: true })
   genre!: Genre;
@@ -60,15 +76,50 @@ export class Artist {
   })
   debutYear!: number | null;
 
+  /**
+   * `simple-array` — TypeORM's "lazy" array storage.
+   *
+   * Under the hood it's a single `text` column where TypeORM joins values
+   * with commas: `["AC/DC", "Acca Dacca"]` becomes `"AC/DC,Acca Dacca"`.
+   *
+   * Pros: zero schema overhead — no extra table.
+   * Cons:
+   *   - cannot store values containing commas,
+   *   - cannot index individual elements,
+   *   - cannot query "where 'X' is in the array" cleanly.
+   *
+   * For richer use-cases prefer a real Postgres array (`text[]`),
+   * `simple-json`, `jsonb`, or a child table with a `@OneToMany`.
+   */
   @Column({ type: 'simple-array', nullable: true })
   aliases!: string[] | null;
 
+  /**
+   * `@OneToMany(() => Song, song => song.artist)` — INVERSE side of the
+   * Song→Artist relation. The owning `@ManyToOne` lives on `Song.artist`.
+   *
+   * Practical use:
+   *   artistRepository.findOne({
+   *     where: { id },
+   *     relations: { songs: true },   // populates `artist.songs`
+   *   });
+   */
   @OneToMany(() => Song, (song) => song.artist)
   songs!: Song[];
 
+  /** Same pattern as `songs` above, but for albums. */
   @OneToMany(() => Album, (album) => album.artist)
   albums!: Album[];
 
+  /**
+   * `@OneToOne(() => ArtistProfile, profile => profile.artist)` —
+   * INVERSE side of a one-to-one relation.
+   *
+   * The OWNING side (the one with the FK column AND `@JoinColumn()`) is on
+   * `ArtistProfile.artist`. We deliberately put the FK there because the
+   * profile is "secondary" data: an artist exists with or without a profile,
+   * but a profile never exists without an artist.
+   */
   @OneToOne(() => ArtistProfile, (profile) => profile.artist)
   profile!: ArtistProfile;
 

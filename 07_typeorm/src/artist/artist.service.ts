@@ -1,12 +1,15 @@
 /**
- * Domain logic for artists, backed by TypeORM's `Repository<Artist>`.
+ * Domain logic for artists, backed by TypeORM's `Repository<Artist>` and
+ * `Repository<ArtistProfile>`.
  *
  * Architecture notes:
- *   - This service owns ALL writes/reads against the `artist` table. Nothing
- *     else in the app should touch `artistRepository` directly — other modules
- *     ask `ArtistService` instead.
- *   - Dependency direction is strictly one-way: `Song -> Artist`. Keeping it
- *     acyclic prevents Nest's classic circular-DI pitfalls.
+ *   - This service is the SINGLE WRITER for both `artist` and
+ *     `artist_profile` tables. Other modules may read those tables (e.g.
+ *     `AlbumService` reads `Artist` to validate `artistId`), but they must
+ *     not modify them — go through this service instead.
+ *   - Dependency direction is strictly one-way: `Song -> Artist`,
+ *     `Album -> Artist`. Keeping it acyclic prevents Nest's classic
+ *     circular-DI pitfalls.
  *
  * Repository API in a nutshell:
  *   - `create(dto)`               – builds an entity instance (no DB call)
@@ -38,15 +41,26 @@ export class ArtistService {
      */
     @InjectRepository(Artist)
     private readonly artistRepository: Repository<Artist>,
+    /**
+     * Second repository for the related `ArtistProfile` table. Both
+     * repositories share the same underlying `DataSource` / connection
+     * pool — TypeORM does NOT create a new connection per repository.
+     */
     @InjectRepository(ArtistProfile)
     private readonly artistProfileRepository: Repository<ArtistProfile>,
     private readonly logger: LoggerService,
   ) {}
 
   /**
-   * Returns every artist. Note: we return the Repository's Promise directly —
-   * no need to mark the method `async` for a one-liner pass-through.
-   * In a real app you would add pagination (`take`/`skip`) here.
+   * Returns every artist with their profile eagerly loaded.
+   *
+   * `relations: { profile: true }` issues a LEFT JOIN to `artist_profile`.
+   * Without it `artist.profile` would be `undefined` and accessing fields on
+   * it would throw at runtime.
+   *
+   * Note: we return the Repository's Promise directly — no need to mark the
+   * method `async` for a one-liner pass-through. In a real app you would
+   * add pagination (`take`/`skip`) here.
    */
   getAllArtists(): Promise<Artist[]> {
     return this.artistRepository.find({
@@ -56,7 +70,10 @@ export class ArtistService {
     });
   }
 
-  /** Throws Nest `NotFoundException` → HTTP 404 via the default exception layer. */
+  /**
+   * Single artist + profile. Throws Nest `NotFoundException` → HTTP 404 via
+   * the default exception layer.
+   */
   async getArtistById(id: string): Promise<Artist> {
     const artist = await this.artistRepository.findOne({
       where: { id },
@@ -71,10 +88,27 @@ export class ArtistService {
   }
 
   /**
-   * Notice how we don't pass `body` directly to `create()` — we explicitly
-   * pick only the fields we want. This is defense-in-depth on top of
-   * `whitelist: true` in `ValidationPipe`: even if a rogue field slipped
-   * through, it would never reach the database.
+   * Two-table create — inserts an `Artist` row, then a related
+   * `ArtistProfile` row that links back via the FK column.
+   *
+   * Steps:
+   *   1. Split the DTO: `profile` is a nested object, the rest is the artist.
+   *   2. Insert the artist first so its UUID exists.
+   *   3. Insert the profile, linking it to the artist via `artistId`.
+   *   4. Re-load the artist with `relations: { profile: true }` so the API
+   *      response includes the freshly created profile.
+   *
+   * Caveat: this is NOT transactional. If step 3 fails, you'll have an
+   * orphan artist with no profile. For a transactional version, use
+   * `dataSource.transaction(async (manager) => { … })` so both inserts
+   * commit or roll back together. We keep the simple version here for
+   * teaching clarity — see the README's "Transactions" section for the
+   * production-grade pattern.
+   *
+   * Notice how we don't pass `body` directly to `create()` — we destructure
+   * `profile` out first so it never reaches the artist insert. This is
+   * defense-in-depth on top of `whitelist: true` in `ValidationPipe`: even
+   * if a rogue field slipped through, it would never reach the database.
    */
   async createArtist(body: ArtistCreateDto): Promise<Artist> {
     const { profile, ...restOfBody } = body;

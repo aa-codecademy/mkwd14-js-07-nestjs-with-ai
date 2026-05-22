@@ -1,19 +1,24 @@
 /**
  * Song feature module.
  *
- * Depends on ArtistModule because SongService needs ArtistService for enrichments
- * (e.g. `artistName` in song responses).
- *
- * This is the preferred Nest pattern:
- * - import the module that exports what you need
- * - avoid duplicating foreign services in `providers`
- *
  * Two `imports` entries are at play here:
- *   - `TypeOrmModule.forFeature([Song])` → provides a `Repository<Song>` to
- *     this module. The repository is injected into `SongService`.
- *   - `ArtistModule`                     → re-exports `ArtistService` so this
- *     module can ask the artist domain for data, without ever holding a direct
- *     `Repository<Artist>` (encapsulation).
+ *
+ *   1. `TypeOrmModule.forFeature([Song, Album, Artist])`
+ *      Registers THREE repositories in this module's DI scope:
+ *        - `Repository<Song>`   — owned: this module is the writer.
+ *        - `Repository<Album>`  — read-only, used to validate `albumId`
+ *                                 before inserting/updating a song.
+ *        - `Repository<Artist>` — read-only, used to validate `artistId`.
+ *      Cross-entity FK checks need a repository handle, hence both are
+ *      registered here even though they're "owned" by other modules.
+ *
+ *   2. `ArtistModule`
+ *      Re-exports `ArtistService`. Importing the module (instead of the
+ *      service directly) is the preferred Nest pattern — it preserves the
+ *      module's encapsulation and avoids duplicate `providers` entries.
+ *
+ * Multiple modules registering the same entity in `forFeature` is fine; the
+ * underlying `DataSource` is shared across the whole app.
  */
 import { Module } from '@nestjs/common';
 import { ArtistModule } from '../artist/artist.module';
