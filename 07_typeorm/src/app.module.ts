@@ -15,6 +15,7 @@ import { ArtistModule } from './artist/artist.module';
 import { LoggerModule } from './logger/logger.module';
 import { SongModule } from './song/song.module';
 import { DatabaseModule } from './db/database.module';
+import { PlaylistModule } from './playlist/playlist.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DatabaseModule } from './db/database.module';
     AlbumModule,
     LoggerModule.forRoot({ level: 'info' }),
     DatabaseModule,
+    PlaylistModule,
   ],
   controllers: [AppController],
   providers: [],

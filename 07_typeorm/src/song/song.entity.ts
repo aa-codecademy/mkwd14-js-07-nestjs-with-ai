@@ -17,12 +17,14 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  ManyToMany,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Album } from '../album/album.entity';
 import { Artist } from '../artist/entitites/artist.entity';
+import { Playlist } from '../playlist/entities/playlist.entity';
 
 @Entity()
 export class Song {
@@ -91,6 +93,9 @@ export class Song {
    */
   @ManyToOne(() => Album, (album) => album.songs)
   album!: Album;
+
+  @ManyToMany(() => Playlist, (playlist) => playlist.songs)
+  playlists!: Playlist[];
 
   @CreateDateColumn()
   createdAt!: Date;
