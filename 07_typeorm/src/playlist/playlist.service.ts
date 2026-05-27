@@ -3,13 +3,16 @@ import { PlaylistCreateDto } from './dto/playlist-create.dto';
 import { PlaylistUpdateDto } from './dto/playlist-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
-import type { Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
+import { Song } from '../song/song.entity';
 
 @Injectable()
 export class PlaylistService {
   constructor(
     @InjectRepository(Playlist)
     private readonly playlistRepository: Repository<Playlist>,
+    @InjectRepository(Song)
+    private readonly songRepository: Repository<Song>,
   ) {}
 
   async create(body: PlaylistCreateDto): Promise<Playlist> {
@@ -44,6 +47,23 @@ export class PlaylistService {
     const updatedPlaylist = await this.playlistRepository.save({
       ...playlist,
       ...body,
+    });
+
+    return updatedPlaylist;
+  }
+
+  async addSongs(id: string, songIds: string[]): Promise<Playlist> {
+    const playlist = await this.findOne(id);
+
+    const songs = await this.songRepository.find({
+      where: {
+        id: In(songIds),
+      },
+    });
+
+    const updatedPlaylist = await this.playlistRepository.save({
+      ...playlist,
+      songs,
     });
 
     return updatedPlaylist;

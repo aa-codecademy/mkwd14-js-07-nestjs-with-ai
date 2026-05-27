@@ -813,13 +813,43 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "localhost:3000/artist",
+                  "raw": "localhost:3000/artist?sortDirection=DESC&sortBy=debutYear&pageSize=5&page=1",
                   "host": [
                     "localhost"
                   ],
                   "port": "3000",
                   "path": [
                     "artist"
+                  ],
+                  "query": [
+                    {
+                      "key": "q",
+                      "value": "dr",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "genre",
+                      "value": "hip-hop",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sortDirection",
+                      "value": "DESC"
+                    },
+                    {
+                      "key": "sortBy",
+                      "value": "debutYear"
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "5"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
                   ]
                 }
               },
@@ -857,7 +887,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"name\": \"Dr. Dre\",\n    \"genre\": \"hip-hop\",\n    \"debutYear\": 1980,\n    \"isActive\": true,\n    \"aliases\": [\"Dre\", \"Doctor\"],\n    \"profile\": {\n        \"country\": \"USA\",\n        \"city\": \"LA\"\n    }\n}",
+                  "raw": "{\n    \"name\": \"Aphex Twin\",\n    \"genre\": \"electronic\",\n    \"debutYear\": 1985,\n    \"isActive\": true,\n    \"aliases\": [\"AFX\", \"Polygon Window\"],\n    \"profile\": {\n      \"country\": \"Ireland\",\n      \"city\": \"Limerick\"\n    }\n  }",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1250,6 +1280,208 @@
                     {
                       "key": "id",
                       "value": "48fd424d-b871-4955-8c4e-0ebafbfceff1"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Playlist",
+          "item": [
+            {
+              "name": "Create playlist",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Test\",\n    \"author\": \"Ivo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/playlist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "playlist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update playlist",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"author\": \"Nikola\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/playlist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "playlist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "c40be432-e3e7-4a8e-87e0-8add1e2cfb2e"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update playlist songs",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"songIds\": [\"0533b9ee-0369-443c-8b85-d5d33ac236bf\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/playlist/:id/songs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "playlist",
+                    ":id",
+                    "songs"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "c40be432-e3e7-4a8e-87e0-8add1e2cfb2e"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get all playlist",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Test\",\n    \"author\": \"Ivo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/playlist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "playlist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get playlist by id",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Test\",\n    \"author\": \"Ivo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/playlist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "playlist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "c40be432-e3e7-4a8e-87e0-8add1e2cfb2e"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete playlist",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Test\",\n    \"author\": \"Ivo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:3000/playlist/:id",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "playlist",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "c40be432-e3e7-4a8e-87e0-8add1e2cfb2e"
                     }
                   ]
                 }

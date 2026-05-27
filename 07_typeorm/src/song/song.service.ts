@@ -53,6 +53,7 @@ export class SongService {
     return this.songRepository.find({
       relations: {
         album: true,
+        // playlists: true,
       },
     });
   }

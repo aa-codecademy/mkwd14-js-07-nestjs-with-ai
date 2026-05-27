@@ -24,12 +24,13 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
-import type { ArtistCreateDto } from './dto/artist-create.dto';
-import type { ArtistPartialUpdateDto } from './dto/artist-update.dto';
+import { ArtistCreateDto } from './dto/artist-create.dto';
+import { ArtistPartialUpdateDto } from './dto/artist-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Artist } from './entitites/artist.entity';
-import type { Repository } from 'typeorm';
+import { ILike, type Repository } from 'typeorm';
 import { ArtistProfile } from './entitites/artist-profile.entity';
+import { ArtistSearchQuery } from './dto/artist-search-query.dto';
 
 @Injectable()
 export class ArtistService {
@@ -62,11 +63,50 @@ export class ArtistService {
    * method `async` for a one-liner pass-through. In a real app you would
    * add pagination (`take`/`skip`) here.
    */
-  getAllArtists(): Promise<Artist[]> {
+  // getAllArtists(): Promise<Artist[]> {
+  //   return this.artistRepository.find({
+  //     relations: {
+  //       profile: true,
+  //     },
+  //   });
+  // }
+
+  getArtists({
+    q,
+    genre,
+    sortBy,
+    sortDirection,
+    page,
+    pageSize,
+  }: ArtistSearchQuery): Promise<Artist[]> {
+    let where = {};
+
+    if (q) {
+      where = {
+        name: ILike(`%${q}%`),
+      };
+    }
+
+    if (genre) {
+      where = {
+        ...where,
+        genre,
+      };
+    }
+
+    const skip = page * pageSize; // 0, 1
+    const take = pageSize; // 10, 20
+
     return this.artistRepository.find({
+      where,
       relations: {
         profile: true,
       },
+      order: {
+        [sortBy]: sortDirection,
+      },
+      skip,
+      take,
     });
   }
 

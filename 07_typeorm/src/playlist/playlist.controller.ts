@@ -7,10 +7,12 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  Put,
 } from '@nestjs/common';
 import { PlaylistService } from './playlist.service';
 import { PlaylistCreateDto } from './dto/playlist-create.dto';
 import { PlaylistUpdateDto } from './dto/playlist-update.dto';
+import { PlaylistUpdateSongs } from './dto/playlist-update-songs.dto';
 
 @Controller('playlist')
 export class PlaylistController {
@@ -37,6 +39,14 @@ export class PlaylistController {
     @Body() body: PlaylistUpdateDto,
   ) {
     return this.playlistService.update(id, body);
+  }
+
+  @Put(':id/songs')
+  addSongs(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() { songIds }: PlaylistUpdateSongs,
+  ) {
+    return this.playlistService.addSongs(id, songIds);
   }
 
   @Delete(':id')

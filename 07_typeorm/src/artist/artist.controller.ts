@@ -28,19 +28,27 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ArtistService } from './artist.service';
 import { ArtistCreateDto } from './dto/artist-create.dto';
 import { ArtistPartialUpdateDto } from './dto/artist-update.dto';
 import type { Artist } from './entitites/artist.entity';
+import { ArtistSearchQuery } from './dto/artist-search-query.dto';
 
 @Controller('artist')
 export class ArtistController {
   constructor(private readonly artistsService: ArtistService) {}
 
+  // @Get()
+  // getAllArtists(): Promise<Artist[]> {
+  //   return this.artistsService.getAllArtists();
+  // }
+
+  // localhost:3000/artist?page=1&pageSize=10&sortBy=age
   @Get()
-  getAllArtists(): Promise<Artist[]> {
-    return this.artistsService.getAllArtists();
+  getArtists(@Query() query: ArtistSearchQuery): Promise<Artist[]> {
+    return this.artistsService.getArtists(query);
   }
 
   @Get(':id')
