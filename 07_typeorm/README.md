@@ -7,7 +7,9 @@ You will learn:
 - What an **ORM** is and why we use one
 - How **TypeORM** connects to a database in Nest (`forRoot` vs `forFeature`)
 - How to declare an **Entity** and what every decorator does (`@Entity`, `@Column`, `@PrimaryGeneratedColumn`, …)
+- How to model **relations** between tables: `@OneToOne`, `@OneToMany`/`@ManyToOne`, and `@ManyToMany` (with junction tables)
 - How to use a **`Repository<T>`** — `create`, `save`, `find`, `findOneBy`, `update`, `softDelete`
+- How to add **search, filtering, sorting, and pagination** with `find()` options and find operators (`ILike`, `In`, `Between`, …)
 - The difference between **soft delete** and **hard delete**
 - Why **`synchronize: true`** is fine in class and dangerous in production
 - The role of **migrations** and where to go next
@@ -297,31 +299,37 @@ Relations are how you tell TypeORM "this entity is connected to that one". They 
 |-----------|-------------|-------------------------|
 | `@OneToOne` | 1 ↔ 1 | `Artist` ↔ `ArtistProfile` |
 | `@OneToMany` / `@ManyToOne` | 1 ↔ N | `Artist` ↔ `Song`, `Artist` ↔ `Album`, `Album` ↔ `Song` |
-| `@ManyToMany` | N ↔ N | not used here — see "Further reading" |
+| `@ManyToMany` | N ↔ N | `Playlist` ↔ `Song` (via `playlist_songs`) |
 
 ### 7.2 The data model used in this project
 
 ```
                         ┌──────────────────┐
                         │  ArtistProfile   │
-                        │ (1:1 inverse 👇) │
                         └─────────▲────────┘
-                                  │ @JoinColumn (FK lives here)
-                                  │
-   ┌────────────────────────┐    @OneToOne                    ┌────────┐
-   │         Artist         │◀──────────────                  │  Song  │
-   │ ────────────────────── │                                 │ ────── │
-   │  songs   @OneToMany ───┼──────@ManyToOne──── artist ──── │ artist │
-   │  albums  @OneToMany ───┼──────@ManyToOne──── artist ──── │ ...    │
-   │  profile @OneToOne ◀───┼  (inverse)                      │        │
-   └────────────────────────┘                                 │ album  │ ◀── @ManyToOne
-                                                              │ ...    │
-                          ┌────────┐                          └────┬───┘
+                                  │ @JoinColumn (FK on profile)
+                                  │ @OneToOne
+   ┌────────────────────────┐     │                           ┌──────────┐
+   │         Artist         │◀────┘                           │   Song   │
+   │ ────────────────────── │                                 │ ──────── │
+   │  songs   @OneToMany ───┼──────@ManyToOne──── artist ──── │ artist   │
+   │  albums  @OneToMany ───┼──────@ManyToOne──── artist ──── │ album    │ ◀── @ManyToOne
+   │  profile @OneToOne     │                                 │ playlists│ ◀── @ManyToMany (inverse)
+   └────────────────────────┘                                 └────┬─────┘
+                                                                   │
+                          ┌────────┐                               │
                           │ Album  │                               │
                           │ ────── │                               │
                           │ artist │── @ManyToOne ── Artist        │
                           │ songs  │── @OneToMany ────────────────▶│
-                          └────────┘
+                          └────────┘                               │
+                                                                   │
+                          ┌──────────────────┐                     │
+                          │     Playlist     │                     │
+                          │ ──────────────── │   @ManyToMany       │
+                          │ songs  @JoinTable┼─────────────────────┘
+                          └──────────────────┘  ↑ owning side
+                                                   junction: playlist_songs
 ```
 
 ### 7.3 Owning side vs inverse side
@@ -405,22 +413,97 @@ profile!: ArtistProfile;
 
 **Rule of thumb:** put `@JoinColumn()` on the OPTIONAL side — the side that "depends on" the other. An artist exists with or without a profile, but a profile cannot exist without an artist, so the FK lives on `ArtistProfile`.
 
-### 7.6 `@ManyToMany` — many-to-many (not in this project)
+### 7.6 `@ManyToMany` — many-to-many in detail
 
-Use when both sides can have many of the other (e.g. an `Author` writes many `Book`s, and a `Book` can have many `Author`s). TypeORM creates a hidden **junction table** for you.
+Used in this project between `Playlist` and `Song`: a playlist contains many songs, AND a song can appear in many playlists. Postgres can't express that with a single FK column, so TypeORM creates a **junction table** with two FK columns and a composite primary key.
 
 ```ts
-// book.entity.ts
-@ManyToMany(() => Author, (a) => a.books)
-@JoinTable()      // ONE side must declare @JoinTable() — that's the owner
-authors!: Author[];
+// playlist.entity.ts (OWNING side — has @JoinTable)
+@ManyToMany(() => Song, (song) => song.playlists)
+@JoinTable({ name: 'playlist_songs' })
+songs!: Song[];
 
-// author.entity.ts (inverse — no @JoinTable)
-@ManyToMany(() => Book, (b) => b.authors)
-books!: Book[];
+// song.entity.ts (INVERSE side — no @JoinTable)
+@ManyToMany(() => Playlist, (playlist) => playlist.songs)
+playlists!: Playlist[];
 ```
 
-The next exercise on `Song.featuringArtists` is a perfect candidate for `@ManyToMany`.
+This generates roughly:
+
+```sql
+CREATE TABLE playlist_songs (
+  "playlistId" uuid REFERENCES playlist(id),
+  "songId"     uuid REFERENCES song(id),
+  PRIMARY KEY ("playlistId", "songId")
+);
+```
+
+#### Owning vs inverse
+
+- The **owning** side has the `@JoinTable()` decorator. ONLY ONE side may. That side controls what ends up in the junction table.
+- The **inverse** side just references back. Use it for navigation in code (e.g. `song.playlists`).
+
+#### `@JoinTable` options worth knowing
+
+```ts
+@JoinTable({
+  name: 'playlist_songs',                                       // junction table name
+  joinColumn:        { name: 'playlist_id', referencedColumnName: 'id' },
+  inverseJoinColumn: { name: 'song_id',     referencedColumnName: 'id' },
+})
+```
+
+The default column names are `<table>Id` (camelCase). The explicit form is useful when you want snake_case columns to match the rest of your schema (use it alongside a custom `namingStrategy`).
+
+#### Writing to a many-to-many — "set replace" semantics
+
+Saving an array of related entities REPLACES the entire set:
+
+```ts
+// playlist.service.ts — addSongs(id, songIds)
+const playlist = await this.findOne(id);
+const songs    = await this.songRepository.find({ where: { id: In(songIds) } });
+
+await this.playlistRepository.save({ ...playlist, songs }); // diffs the set
+```
+
+TypeORM compares the new array to the rows currently in `playlist_songs`, then issues the minimum DELETEs and INSERTs to reconcile them. This is exactly what makes the method suitable for a `PUT` endpoint — see `playlist.controller.ts`.
+
+#### Fine-grained add/remove (no full reload)
+
+If you don't want to load and re-save the whole playlist, use the **relation query builder**:
+
+```ts
+await this.playlistRepository
+  .createQueryBuilder()
+  .relation(Playlist, 'songs')
+  .of(playlistId)
+  .add(songId);            // just INSERT into playlist_songs
+
+await this.playlistRepository
+  .createQueryBuilder()
+  .relation(Playlist, 'songs')
+  .of(playlistId)
+  .addAndRemove([newIds], [oldIds]);  // delta update
+```
+
+#### Many-to-many with extra columns (e.g. `position`)
+
+If you need additional fields on the link (an ordered playlist, a "joined at" timestamp, a role), don't use `@ManyToMany` — instead model the junction explicitly as its own entity:
+
+```ts
+@Entity()
+class PlaylistSong {
+  @PrimaryColumn() playlistId!: string;
+  @PrimaryColumn() songId!: string;
+  @Column('int')   position!: number;
+
+  @ManyToOne(() => Playlist, (p) => p.entries) playlist!: Playlist;
+  @ManyToOne(() => Song,     (s) => s.entries) song!: Song;
+}
+```
+
+This is called the **"junction-as-entity"** pattern. It's the right call any time the relationship itself carries information.
 
 ### 7.7 Loading related rows — `relations`, `eager`, lazy
 
@@ -564,7 +647,132 @@ You'll also see this in `AlbumModule.imports` and `SongModule.imports` — the e
 
 ---
 
-## 8. The Repository pattern — `Repository<T>`
+## 8. Filtering, sorting, and pagination
+
+Every list endpoint eventually grows the same set of query parameters: search, filter, sort, page. TypeORM gives you all the building blocks via the `find()` options object. This section walks through the recipe used by `GET /artist` (see `ArtistService.getArtists`).
+
+### 8.1 The four ingredients
+
+```ts
+this.artistRepository.find({
+  where:    { /* filters         */ },
+  relations:{ /* eager-load rows */ },
+  order:    { /* sort            */ },
+  skip:     /* OFFSET            */,
+  take:     /* LIMIT             */,
+});
+```
+
+Translated to SQL:
+
+```sql
+SELECT … FROM artist
+  LEFT JOIN artist_profile ON …       -- relations
+  WHERE  name ILIKE $1 AND genre = $2 -- where
+  ORDER BY "createdAt" DESC           -- order
+  LIMIT 10 OFFSET 20;                 -- take + skip
+```
+
+### 8.2 Dynamic `where` — assemble it conditionally
+
+The cleanest way to build a `where` object from optional query params is "spread as you go":
+
+```ts
+let where: FindOptionsWhere<Artist> = {};
+
+if (q)     where = { ...where, name:  ILike(`%${q}%`) };
+if (genre) where = { ...where, genre };
+```
+
+Omitted parameters produce **no predicate at all** — they don't end up as `WHERE name = NULL`, they simply aren't in the object.
+
+> For complex AND/OR combinations, switch to the **QueryBuilder** (section 12) or pass an ARRAY of `where` objects — TypeORM treats `where: [a, b]` as `(a) OR (b)`.
+
+### 8.3 Find operators
+
+`ILike`, `In`, `Between`, etc. are TypeORM's **find operators** — small wrappers that translate to SQL operators while staying type-safe:
+
+| Operator | SQL | Used in this project? |
+|----------|-----|-----------------------|
+| `ILike('%foo%')` | `column ILIKE 'X'` (case-insensitive `LIKE`) | ✅ `ArtistService.getArtists` |
+| `Like('%foo%')` | `column LIKE 'X'` (case-sensitive) | — |
+| `In([a, b, c])` | `column IN (a, b, c)` | ✅ `PlaylistService.addSongs` |
+| `Between(a, b)` | `column BETWEEN a AND b` | — |
+| `MoreThan(n)` / `LessThan(n)` | `> n` / `< n` | — |
+| `MoreThanOrEqual(n)` / `LessThanOrEqual(n)` | `>=` / `<=` | — |
+| `IsNull()` | `column IS NULL` | — |
+| `Not(value)` | `column != value` | — |
+| `Any([a, b])` | `column = ANY(ARRAY[a, b])` | — |
+| `ArrayContains([...])` / `ArrayContainedBy([...])` | for Postgres `text[]` etc. | — |
+| `Raw(alias => \`…\${alias}…\`)` | escape hatch — your own SQL fragment | — |
+
+Combine them naturally:
+
+```ts
+where: {
+  isExplicit: true,
+  durationSeconds: MoreThan(120),
+  releaseDate: Between(new Date('2020-01-01'), new Date('2020-12-31')),
+}
+```
+
+Full reference: [TypeORM — Find operators](https://typeorm.io/find-options#advanced-options).
+
+### 8.4 Sorting — whitelist the column
+
+```ts
+order: { [sortBy]: sortDirection }
+```
+
+This works because TypeScript's computed-property syntax lets us use a variable as the key.
+
+⚠️ **Never trust a raw `sortBy=<column>` query string.** Even with parameterized queries, the column name is treated as an IDENTIFIER in SQL and CANNOT be parameterized. The safest pattern, used here:
+
+1. Define an `ArtistSortByFields` ENUM of allowed columns.
+2. Validate the DTO with `@IsEnum(ArtistSortByFields)`.
+3. Pass the validated value as the order key.
+
+This kills "sort-by SQL injection" before the value reaches TypeORM.
+
+### 8.5 Pagination — `skip` + `take` (or `findAndCount`)
+
+```ts
+const skip = (page - 1) * pageSize; // 1-indexed pages
+const take = pageSize;
+
+return this.artistRepository.find({ where, order, skip, take });
+```
+
+Use `findAndCount` if you also want the total — handy for "Page X of Y" UI:
+
+```ts
+const [items, total] = await this.artistRepository.findAndCount({
+  where, order, skip, take,
+});
+return { items, total, page, pageSize };
+```
+
+**Performance gotcha:** `findAndCount` runs an extra `SELECT COUNT(*)` over the same filter, which is fine for small tables but expensive on huge ones. For high-traffic endpoints prefer keyset pagination (a.k.a. "seek pagination") with a `WHERE id < lastSeenId` clause.
+
+### 8.6 Putting it all together
+
+The shared DTO chain in this project:
+
+```
+PaginationDto                  // page, pageSize
+  └── ArtistSearchQuery        // adds q, genre, sortBy, sortDirection
+```
+
+Inheriting from `PaginationDto` keeps every list endpoint consistent — `page`/`pageSize` are validated once and reused everywhere. You can build similar `…SearchQuery extends PaginationDto` classes for albums, songs, playlists, and so on.
+
+**Read more:**
+- [TypeORM — Find options](https://typeorm.io/find-options)
+- [TypeORM — Find operators](https://typeorm.io/find-options#advanced-options)
+- [Seek (keyset) pagination explained](https://use-the-index-luke.com/no-offset)
+
+---
+
+## 9. The Repository pattern — `Repository<T>`
 
 Once an entity is registered with `forFeature(...)`, Nest can inject a typed repository into your service:
 
@@ -643,7 +851,7 @@ Both are in this project on purpose so you can see the trade-off.
 
 ---
 
-## 9. Soft delete vs hard delete
+## 10. Soft delete vs hard delete
 
 Hard delete (`repo.delete(id)`):
 
@@ -677,7 +885,7 @@ repo.restore(id);                    // unset deletedAt
 
 ---
 
-## 10. The `@InjectRepository(Entity)` decorator
+## 11. The `@InjectRepository(Entity)` decorator
 
 ```ts
 constructor(
@@ -692,7 +900,7 @@ You can only inject a repository for an entity that's been registered with `Type
 
 ---
 
-## 11. Synchronize vs migrations
+## 12. Synchronize vs migrations
 
 | | `synchronize: true` | Migrations |
 |---|---|---|
@@ -721,7 +929,7 @@ typeorm migration:revert -d data-source.ts
 
 ---
 
-## 12. QueryBuilder — when CRUD isn't enough
+## 13. QueryBuilder — when CRUD isn't enough
 
 For anything beyond simple CRUD (joins, aggregation, conditional SQL fragments) you drop into the **QueryBuilder**:
 
@@ -740,7 +948,7 @@ const result = await this.albumRepository
 
 ---
 
-## 13. Transactions
+## 14. Transactions
 
 When two writes must succeed or fail together, wrap them in a transaction:
 
@@ -763,26 +971,35 @@ If the callback throws, both statements are rolled back.
 
 ---
 
-## 14. Folder map for this lesson
+## 15. Folder map for this lesson
 
 | File | What to study |
 |------|---------------|
 | `src/db/database.module.ts` | `TypeOrmModule.forRoot` — connection options |
 | `src/app.module.ts` | How `DatabaseModule` plugs into the root |
+| `src/common/dto/pagination.dto.ts` | Reusable `PaginationDto` — extended by per-feature search DTOs |
+| `src/common/types/sort-direction.ts` | `ASC` / `DESC` enum used by sortable list endpoints |
+| `src/common/types/genre.ts` | Shared `Genre` enum used by the DB enum column and by query DTOs |
 | `src/album/album.entity.ts` | `@Entity`, `@Column`, audit columns, `jsonb`, `@ManyToOne` to Artist, `@OneToMany` to Songs |
 | `src/album/album.module.ts` | `TypeOrmModule.forFeature([Album, Artist])` — registering a read-only repo for FK validation |
 | `src/album/album.service.ts` | `create` + `save`, `findOne` with relations, "spread merge" update, `softDelete`, FK validation |
-| `src/song/song.entity.ts` | Two `@ManyToOne` relations side by side (required + optional) |
+| `src/song/song.entity.ts` | Two `@ManyToOne` relations + the INVERSE `@ManyToMany` to `Playlist` |
 | `src/song/song.module.ts` | Three repos in one `forFeature(...)` |
 | `src/song/song.service.ts` | `findOne({ where, relations })` and `update + reload` pattern |
 | `src/artist/entitites/artist.entity.ts` | Postgres `enum` column, `simple-array`, `@OneToMany` × 2, inverse `@OneToOne` |
 | `src/artist/entitites/artist-profile.entity.ts` | Owning `@OneToOne` with `@JoinColumn` |
 | `src/artist/artist.module.ts` | Exporting a service for cross-module use, two entities under one module |
-| `src/artist/artist.service.ts` | Two-table create flow, eager-loading the profile relation |
+| `src/artist/artist.service.ts` | Two-table create flow, eager-loading the profile relation, **`getArtists` with `ILike` + `where` + `order` + `skip`/`take`** |
+| `src/artist/dto/artist-search-query.dto.ts` | Search/sort/paginate DTO that EXTENDS `PaginationDto`; whitelisted sortable columns via enum |
+| `src/playlist/entities/playlist.entity.ts` | **OWNING side of `@ManyToMany`** with explicit `@JoinTable({ name: 'playlist_songs' })` |
+| `src/playlist/playlist.module.ts` | Registering a 2nd read-only repo (`Song`) for many-to-many population |
+| `src/playlist/playlist.service.ts` | `In(...)` operator, set-replace pattern for junction tables |
+| `src/playlist/playlist.controller.ts` | `PUT /playlist/:id/songs` — REST semantics for relation replacement |
+| `src/playlist/dto/playlist-update-songs.dto.ts` | `@IsUUID('4', { each: true })` for arrays of UUIDs |
 
 ---
 
-## 15. Try it yourself
+## 16. Try it yourself
 
 ```bash
 # 1. Make sure Postgres is running on localhost:5433 (see section 3)
@@ -798,45 +1015,67 @@ npm run start:dev
 Then exercise the API:
 
 ```bash
-# Create an artist
+# Create an artist (the profile is created in the same request via a nested object)
 curl -X POST http://localhost:3000/artist \
   -H "Content-Type: application/json" \
   -d '{ "name": "Daft Punk", "genre": "electronic", "isActive": false, "profile": { "country": "FR" }, "debutYear": 1993 }'
 
-# List them
+# List them (defaults: page=1, pageSize=10, sortBy=createdAt, sortDirection=DESC)
 curl http://localhost:3000/artist
+
+# Search + filter + sort + paginate (see section 8)
+curl "http://localhost:3000/artist?q=punk&genre=electronic&sortBy=name&sortDirection=ASC&page=1&pageSize=5"
 
 # Create an album linked to that artist's id
 curl -X POST http://localhost:3000/album \
   -H "Content-Type: application/json" \
-  -d '{ "title": "Discovery", "artistId": "<paste id here>", "releaseDate": "2001-03-12T00:00:00Z" }'
+  -d '{ "title": "Discovery", "artistId": "<artist-id>", "releaseDate": "2001-03-12T00:00:00Z" }'
 
-# Soft delete it
-curl -X DELETE http://localhost:3000/album/<paste id>
+# Create a song that belongs to the album above
+curl -X POST http://localhost:3000/song \
+  -H "Content-Type: application/json" \
+  -d '{ "title": "One More Time", "durationSeconds": 320, "artistId": "<artist-id>", "albumId": "<album-id>" }'
+
+# Many-to-many demo: create a playlist and PUT its full song list
+curl -X POST http://localhost:3000/playlist \
+  -H "Content-Type: application/json" \
+  -d '{ "title": "Driving mix", "author": "me" }'
+
+curl -X PUT "http://localhost:3000/playlist/<playlist-id>/songs" \
+  -H "Content-Type: application/json" \
+  -d '{ "songIds": ["<song-id-1>", "<song-id-2>"] }'
+
+# Soft delete an album
+curl -X DELETE http://localhost:3000/album/<album-id>
 
 # Verify the row is hidden from /album but still in the DB:
-# (in psql:  SELECT id, title, "deletedAt" FROM album;)
+# (in psql:  SELECT id, title, "deletedAt" FROM album;
+#            SELECT * FROM playlist_songs;)  -- inspect the junction table
 ```
 
 A Postman collection is also included: `SEDC_2026_Nest.postman_collection.json`.
 
 ---
 
-## 16. Exercises
+## 17. Exercises
 
 1. **Add an index.** Put `@Index()` on `Artist.genre` and watch what `synchronize: true` does to the schema.
 2. **Make `Song.durationSeconds` strictly positive** with a `@Check("durationSeconds > 0")` constraint.
 3. **Add `onDelete: 'CASCADE'`** to `Song.album` so deleting an album cleans up its songs. Verify the SQL change with `psql \d song`.
 4. **Wrap `ArtistService.createArtist` in a transaction** using `dataSource.transaction(...)` so the artist + profile commit or roll back together.
-5. **Add a `@ManyToMany` between `Song` and `Artist`** for "featuring" artists. Add `@JoinTable()` on the `Song` side and update the Song create flow to accept an array of artist IDs.
-6. **Eager-load `Artist.profile`** with `{ eager: true }` and remove the explicit `relations: { profile: true }` from `getAllArtists`. Compare the SQL with the logger.
-7. **Switch `synchronize` to `false`** and create a migration that adds an `albumCount` column to `Artist`.
-8. **Write a paginated `findAll`** on `AlbumService` that accepts `page` and `pageSize` query params, returns `{ items, total, page, pageSize }`, and uses `findAndCount`.
-9. **Move DB credentials into `.env`** using `@nestjs/config` and `TypeOrmModule.forRootAsync`.
+5. **Reuse `PaginationDto`** in `AlbumService.findAll` and `SongService.getSongs`. Add `page`/`pageSize` query params and switch to `findAndCount` so the API returns `{ items, total, page, pageSize }`.
+6. **Add an album-by-artist filter.** Build an `AlbumSearchQuery extends PaginationDto` with `artistId?: string` and `q?: string` (ILike on `title`). Wire it through the controller via `@Query()`.
+7. **Add a delta endpoint for the playlist.** Implement `POST /playlist/:id/songs` (add) and `DELETE /playlist/:id/songs/:songId` (remove) using the **relation QueryBuilder** (`.relation(Playlist, 'songs').of(id).add(...)`). Compare the SQL with the existing PUT.
+8. **Track playlist position.** Convert the `Playlist` ↔ `Song` link to the *junction-as-entity* pattern (`PlaylistSong { playlistId, songId, position }`) so songs can be ordered.
+9. **Eager-load `Artist.profile`** with `{ eager: true }` and remove the explicit `relations: { profile: true }` from `getArtists`. Compare the SQL with the logger.
+10. **Add a `featuringArtists` `@ManyToMany`** between `Song` and `Artist` (separate from the main `artist` relation). Add `@JoinTable({ name: 'song_featuring_artists' })` on the `Song` side and update the create flow to accept an array of artist IDs.
+11. **Switch `synchronize` to `false`** and create a migration that adds an `albumCount` column to `Artist`.
+12. **Move DB credentials into `.env`** using `@nestjs/config` and `TypeOrmModule.forRootAsync`.
+13. **Fix the pagination quirk.** `ArtistService.getArtists` uses `skip = page * pageSize`, which means `page=1` skips 10 rows. Change it to `(page - 1) * pageSize` and update the default to `page = 1`.
 
 ---
 
-## 17. Further reading
+## 18. Further reading
 
 ### Official
 - [NestJS — Database (TypeORM)](https://docs.nestjs.com/techniques/database)
@@ -846,7 +1085,9 @@ A Postman collection is also included: `SEDC_2026_Nest.postman_collection.json`.
 - [TypeORM — Decorator reference](https://typeorm.io/decorator-reference)
 - [TypeORM — Repository API](https://typeorm.io/repository-api)
 - [TypeORM — Find options](https://typeorm.io/find-options)
+- [TypeORM — Find operators (`ILike`, `In`, `Between`, …)](https://typeorm.io/find-options#advanced-options)
 - [TypeORM — Relations](https://typeorm.io/relations)
+- [TypeORM — Many-to-many relations](https://typeorm.io/many-to-many-relations)
 - [TypeORM — QueryBuilder](https://typeorm.io/select-query-builder)
 - [TypeORM — Migrations](https://typeorm.io/migrations)
 - [TypeORM — Transactions](https://typeorm.io/transactions)

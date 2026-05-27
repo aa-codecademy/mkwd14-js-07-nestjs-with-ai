@@ -53,15 +53,9 @@ export class ArtistService {
   ) {}
 
   /**
-   * Returns every artist with their profile eagerly loaded.
-   *
-   * `relations: { profile: true }` issues a LEFT JOIN to `artist_profile`.
-   * Without it `artist.profile` would be `undefined` and accessing fields on
-   * it would throw at runtime.
-   *
-   * Note: we return the Repository's Promise directly — no need to mark the
-   * method `async` for a one-liner pass-through. In a real app you would
-   * add pagination (`take`/`skip`) here.
+   * (Kept for reference) The simplest form of "list every artist" — no
+   * filtering, sorting, or pagination. Superseded by `getArtists(...)` below,
+   * which supports the full query DTO surface.
    */
   // getAllArtists(): Promise<Artist[]> {
   //   return this.artistRepository.find({
@@ -71,6 +65,35 @@ export class ArtistService {
   //   });
   // }
 
+  /**
+   * Search + filter + sort + paginate artists in one query.
+   *
+   * Stitched together from four TypeORM `find()` options:
+   *
+   *   - `where`     — assembled dynamically from the optional `q` and
+   *                   `genre` fields. We build the object piece by piece so
+   *                   omitted filters produce NO `WHERE` predicate at all.
+   *
+   *                   `ILike(\`%${q}%\`)` is the Postgres `ILIKE` operator
+   *                   (case-insensitive LIKE), one of many "find operators"
+   *                   TypeORM ships with. Others you'll meet: `Like`,
+   *                   `In`, `Between`, `MoreThan`, `LessThan`, `IsNull`,
+   *                   `Not`, `Any`, `Raw`. See:
+   *                   https://typeorm.io/find-options#advanced-options
+   *
+   *   - `relations` — eager-load `profile` so the API response is complete.
+   *
+   *   - `order`     — `{ [sortBy]: sortDirection }`. Both come from a
+   *                   WHITELISTED enum (`ArtistSortByFields` + `SortDirection`)
+   *                   so users can never push arbitrary text in here — see
+   *                   the comment in `artist-search-query.dto.ts` for why
+   *                   that matters.
+   *
+   *   - `skip`/`take` — translate to SQL `OFFSET` / `LIMIT`.
+   *
+   *                   Note: the current implementation computes
+   *                   `skip = (page - 1) * pageSize`, which means `page=0` returns rows 0–9 (zero-indexed).
+   */
   getArtists({
     q,
     genre,
@@ -94,7 +117,7 @@ export class ArtistService {
       };
     }
 
-    const skip = page * pageSize; // 0, 1
+    const skip = (page - 1) * pageSize; // 0, 1
     const take = pageSize; // 10, 20
 
     return this.artistRepository.find({

@@ -1,9 +1,11 @@
 /**
  * Song entity — maps to the `song` table.
  *
- * Demonstrates two `@ManyToOne` relations side by side:
- *   - `artist`  → required ("every song has a performer")
- *   - `album`   → optional ("singles" exist before being on an album)
+ * Demonstrates THREE relations:
+ *   - `artist`    → required `@ManyToOne` ("every song has a performer")
+ *   - `album`     → optional `@ManyToOne` ("singles" exist before an album)
+ *   - `playlists` → INVERSE `@ManyToMany` to `Playlist` (a song can appear
+ *                   in many playlists; junction table is `playlist_songs`)
  *
  * It also shows two more `@Column` patterns:
  *   - `default: false` lets the DB assign a value when the client doesn't.
@@ -94,6 +96,23 @@ export class Song {
   @ManyToOne(() => Album, (album) => album.songs)
   album!: Album;
 
+  /**
+   * `@ManyToMany(() => Playlist, playlist => playlist.songs)` — INVERSE side.
+   *
+   * No `@JoinTable()` here on purpose: only ONE side of a many-to-many gets
+   * to declare the junction table. The owning side is `Playlist.songs`
+   * (see `src/playlist/entities/playlist.entity.ts`), which declared
+   * `@JoinTable({ name: 'playlist_songs' })`.
+   *
+   * What this gives us:
+   *   - `songRepository.findOne({ where: { id }, relations: { playlists: true } })`
+   *     returns the song with every playlist it appears in.
+   *
+   * Why this side is "inverse":
+   *   - The owning side controls the junction table writes. From the song's
+   *     point of view, playlist membership is a read-only graph view —
+   *     adding/removing songs from a playlist goes through `PlaylistService`.
+   */
   @ManyToMany(() => Playlist, (playlist) => playlist.songs)
   playlists!: Playlist[];
 
