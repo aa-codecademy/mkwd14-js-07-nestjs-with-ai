@@ -13,6 +13,7 @@ This folder collects all course homeworks. Each one builds on the previous lesso
 | 1   | [Pet Adoption Center API](./HOMEWORK_1.md)                       | `02_nest_intro` → `04_providers_di`                   | Modules, controllers, routing, services, dependency injection, in-memory state                                                 |
 | 2   | [Pet Adoption Center API — DTOs & Validation](./HOMEWORK_2.md)   | Homework 1 + `05_modules_structure` + `06_dtos_pipes` | DTOs, class-validator, class-transformer, global `ValidationPipe`, pipes                                                       |
 | 3   | [Pet Adoption Center API — TypeORM & Relations](./HOMEWORK_3.md) | Homework 2 + `07_typeorm`                             | PostgreSQL, TypeORM entities & repositories, `@OneToOne` / `@OneToMany` / `@ManyToOne` / `@ManyToMany`, cascades, transactions |
+| 4   | [Pet Adoption Center API — Swagger Docs](./HOMEWORK_4.md)        | Homework 3 + `08_swagger`                             | OpenAPI generation, Swagger UI, endpoint documentation, DTO schema docs, response/error documentation                           |
 
 ---
 
@@ -57,6 +58,18 @@ Replaces the in-memory store with a real **PostgreSQL** database via TypeORM and
 You will practice: **TypeORM entities**, **`Repository<T>`**, **relations**, **eager vs lazy loading**, **cascades**, **transactions**, and modeling a real domain across multiple modules.
 
 Requirements marked with asterisk `*` can be done after we learn about those topics. Feel free to start with what you know at this moment, there are multiple requirements and this homework should take some time for you to complete it.
+
+### Homework 4 — Pet Adoption Center API + Swagger Documentation
+
+Adds complete API documentation for the existing Homework 3 project using NestJS Swagger tools:
+
+- Configure `@nestjs/swagger` and expose docs at `/api/docs`
+- Document every existing endpoint with tags, summaries, params, query filters, request bodies, and response codes
+- Decorate DTOs so schema output is clear (required vs optional, enums, nested objects, arrays, examples)
+- Document common error responses (`400`, `404`, `409`) where relevant
+- Keep this homework documentation-only: no new domain features, no behavior changes
+
+You will practice: **OpenAPI generation**, **Swagger UI integration**, **API contract clarity**, and **consumer-friendly endpoint documentation**.
 
 ---
 
