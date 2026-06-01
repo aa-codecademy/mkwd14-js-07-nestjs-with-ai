@@ -18,6 +18,59 @@ You will learn:
 
 ---
 
+## 0. Runtime map for this project
+
+Before diving into TypeORM details, here is how this app is wired at runtime:
+
+- API prefix: `app.setGlobalPrefix('api')` → all REST endpoints are under `/api/*`
+- Swagger UI: `/docs`
+- Raw OpenAPI JSON: `/docs-json`
+- Static frontend files: served from the `public` folder via `app.useStaticAssets(...)`
+- Example frontend page: `/index.html` (uses `/api/*` routes under the hood)
+
+### 0.1 OpenAPI and Swagger usage
+
+Swagger is configured in `src/main.ts` with:
+
+- `DocumentBuilder` for API metadata (title, description, version)
+- `SwaggerModule.createDocument(...)` for generating the OpenAPI spec from decorators and DTOs
+- `SwaggerModule.setup('docs', ...)` for interactive docs
+
+Quick usage flow:
+
+1. Run `npm run start:dev`
+2. Open [http://localhost:3000/docs](http://localhost:3000/docs)
+3. Test endpoints directly from Swagger UI
+4. Use [http://localhost:3000/docs-json](http://localhost:3000/docs-json) when Postman or other tools need the OpenAPI document
+
+### 0.2 `public` folder usage for the frontend
+
+This repository includes a lightweight static frontend in `public/`:
+
+- `public/index.html` — basic demo UI
+- `public/app.js` — calls backend endpoints on `/api/artist` and `/api/song`
+- `public/styles.css` — page styling
+
+Nest serves these files directly, so no frontend build step is required for this demo.
+
+### 0.3 `createQueryBuilder` vs `find*` methods
+
+Use `find`, `findOne`, and `findOneBy` for straightforward CRUD and simple relations.
+Use `createQueryBuilder` when query shape gets more complex or you want explicit SQL-style control.
+
+| Prefer this | When |
+|---|---|
+| `find*` methods | Basic filtering, ordering, pagination, and common relation loading |
+| `createQueryBuilder` | Dynamic joins, conditional predicates, custom selects, relation updates, or query tuning |
+
+In this codebase:
+
+- `ArtistService.getArtists` uses `find(...)` for clean filter/sort/paginate logic
+- `SongService.getSongs` uses `createQueryBuilder(...)` as a flexible alternative to `find({ relations, order, take, skip })`
+- `PlaylistService.addSongs` documents relation QueryBuilder APIs (`.relation(...).add/remove/addAndRemove`) as an alternative for fine-grained many-to-many updates
+
+---
+
 ## 1. What is an ORM?
 
 An **Object–Relational Mapper** maps rows in a relational database (`SELECT * FROM artist`) to objects in your code (`Artist { id, name, … }`) and back. Instead of writing SQL by hand you describe a **class** and the ORM:
@@ -649,7 +702,7 @@ You'll also see this in `AlbumModule.imports` and `SongModule.imports` — the e
 
 ## 8. Filtering, sorting, and pagination
 
-Every list endpoint eventually grows the same set of query parameters: search, filter, sort, page. TypeORM gives you all the building blocks via the `find()` options object. This section walks through the recipe used by `GET /artist` (see `ArtistService.getArtists`).
+Every list endpoint eventually grows the same set of query parameters: search, filter, sort, page. TypeORM gives you all the building blocks via the `find()` options object. This section walks through the recipe used by `GET /api/artist` (see `ArtistService.getArtists`).
 
 ### 8.1 The four ingredients
 
@@ -994,7 +1047,7 @@ If the callback throws, both statements are rolled back.
 | `src/playlist/entities/playlist.entity.ts` | **OWNING side of `@ManyToMany`** with explicit `@JoinTable({ name: 'playlist_songs' })` |
 | `src/playlist/playlist.module.ts` | Registering a 2nd read-only repo (`Song`) for many-to-many population |
 | `src/playlist/playlist.service.ts` | `In(...)` operator, set-replace pattern for junction tables |
-| `src/playlist/playlist.controller.ts` | `PUT /playlist/:id/songs` — REST semantics for relation replacement |
+| `src/playlist/playlist.controller.ts` | `PUT /api/playlist/:id/songs` — REST semantics for relation replacement |
 | `src/playlist/dto/playlist-update-songs.dto.ts` | `@IsUUID('4', { each: true })` for arrays of UUIDs |
 
 ---
@@ -1012,43 +1065,49 @@ npm install
 npm run start:dev
 ```
 
+Useful URLs after startup:
+
+- [http://localhost:3000/docs](http://localhost:3000/docs) — Swagger UI
+- [http://localhost:3000/docs-json](http://localhost:3000/docs-json) — OpenAPI JSON
+- [http://localhost:3000/index.html](http://localhost:3000/index.html) — static frontend from `public/`
+
 Then exercise the API:
 
 ```bash
 # Create an artist (the profile is created in the same request via a nested object)
-curl -X POST http://localhost:3000/artist \
+curl -X POST http://localhost:3000/api/artist \
   -H "Content-Type: application/json" \
   -d '{ "name": "Daft Punk", "genre": "electronic", "isActive": false, "profile": { "country": "FR" }, "debutYear": 1993 }'
 
 # List them (defaults: page=1, pageSize=10, sortBy=createdAt, sortDirection=DESC)
-curl http://localhost:3000/artist
+curl http://localhost:3000/api/artist
 
 # Search + filter + sort + paginate (see section 8)
-curl "http://localhost:3000/artist?q=punk&genre=electronic&sortBy=name&sortDirection=ASC&page=1&pageSize=5"
+curl "http://localhost:3000/api/artist?q=punk&genre=electronic&sortBy=name&sortDirection=ASC&page=1&pageSize=5"
 
 # Create an album linked to that artist's id
-curl -X POST http://localhost:3000/album \
+curl -X POST http://localhost:3000/api/album \
   -H "Content-Type: application/json" \
   -d '{ "title": "Discovery", "artistId": "<artist-id>", "releaseDate": "2001-03-12T00:00:00Z" }'
 
 # Create a song that belongs to the album above
-curl -X POST http://localhost:3000/song \
+curl -X POST http://localhost:3000/api/song \
   -H "Content-Type: application/json" \
   -d '{ "title": "One More Time", "durationSeconds": 320, "artistId": "<artist-id>", "albumId": "<album-id>" }'
 
 # Many-to-many demo: create a playlist and PUT its full song list
-curl -X POST http://localhost:3000/playlist \
+curl -X POST http://localhost:3000/api/playlist \
   -H "Content-Type: application/json" \
   -d '{ "title": "Driving mix", "author": "me" }'
 
-curl -X PUT "http://localhost:3000/playlist/<playlist-id>/songs" \
+curl -X PUT "http://localhost:3000/api/playlist/<playlist-id>/songs" \
   -H "Content-Type: application/json" \
   -d '{ "songIds": ["<song-id-1>", "<song-id-2>"] }'
 
 # Soft delete an album
-curl -X DELETE http://localhost:3000/album/<album-id>
+curl -X DELETE http://localhost:3000/api/album/<album-id>
 
-# Verify the row is hidden from /album but still in the DB:
+# Verify the row is hidden from /api/album but still in the DB:
 # (in psql:  SELECT id, title, "deletedAt" FROM album;
 #            SELECT * FROM playlist_songs;)  -- inspect the junction table
 ```
@@ -1065,7 +1124,7 @@ A Postman collection is also included: `SEDC_2026_Nest.postman_collection.json`.
 4. **Wrap `ArtistService.createArtist` in a transaction** using `dataSource.transaction(...)` so the artist + profile commit or roll back together.
 5. **Reuse `PaginationDto`** in `AlbumService.findAll` and `SongService.getSongs`. Add `page`/`pageSize` query params and switch to `findAndCount` so the API returns `{ items, total, page, pageSize }`.
 6. **Add an album-by-artist filter.** Build an `AlbumSearchQuery extends PaginationDto` with `artistId?: string` and `q?: string` (ILike on `title`). Wire it through the controller via `@Query()`.
-7. **Add a delta endpoint for the playlist.** Implement `POST /playlist/:id/songs` (add) and `DELETE /playlist/:id/songs/:songId` (remove) using the **relation QueryBuilder** (`.relation(Playlist, 'songs').of(id).add(...)`). Compare the SQL with the existing PUT.
+7. **Add a delta endpoint for the playlist.** Implement `POST /api/playlist/:id/songs` (add) and `DELETE /api/playlist/:id/songs/:songId` (remove) using the **relation QueryBuilder** (`.relation(Playlist, 'songs').of(id).add(...)`). Compare the SQL with the existing PUT.
 8. **Track playlist position.** Convert the `Playlist` ↔ `Song` link to the *junction-as-entity* pattern (`PlaylistSong { playlistId, songId, position }`) so songs can be ordered.
 9. **Eager-load `Artist.profile`** with `{ eager: true }` and remove the explicit `relations: { profile: true }` from `getArtists`. Compare the SQL with the logger.
 10. **Add a `featuringArtists` `@ManyToMany`** between `Song` and `Artist` (separate from the main `artist` relation). Add `@JoinTable({ name: 'song_featuring_artists' })` on the `Song` side and update the create flow to accept an array of artist IDs.

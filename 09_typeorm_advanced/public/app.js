@@ -3,6 +3,7 @@ const artistForm = document.getElementById('artist-form');
 const songForm = document.getElementById('song-form');
 const loadArtistsBtn = document.getElementById('load-artists');
 const loadSongsBtn = document.getElementById('load-songs');
+const API_PREFIX = '/api';
 
 async function api(path, init) {
   const response = await fetch(path, {
@@ -40,7 +41,7 @@ artistForm.addEventListener('submit', async (event) => {
   };
 
   try {
-    const artist = await api('/artist', {
+    const artist = await api(`${API_PREFIX}/artist`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -63,7 +64,7 @@ songForm.addEventListener('submit', async (event) => {
   };
 
   try {
-    const song = await api('/song', {
+    const song = await api(`${API_PREFIX}/song`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -76,7 +77,7 @@ songForm.addEventListener('submit', async (event) => {
 
 loadArtistsBtn.addEventListener('click', async () => {
   try {
-    const artists = await api('/artist');
+    const artists = await api(`${API_PREFIX}/artist`);
     print({ artists });
   } catch (error) {
     print({ error: error.message });
@@ -85,7 +86,7 @@ loadArtistsBtn.addEventListener('click', async () => {
 
 loadSongsBtn.addEventListener('click', async () => {
   try {
-    const songs = await api('/song');
+    const songs = await api(`${API_PREFIX}/song`);
     print({ songs });
   } catch (error) {
     print({ error: error.message });

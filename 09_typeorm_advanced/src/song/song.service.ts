@@ -15,14 +15,14 @@
  *                  an `UpdateResult` so you must reload if you need the row.
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { LoggerService } from '../logger/logger.service';
-import { SongCreateDto } from './dto/song-create.dto';
-import { SongUpdateDto } from './dto/song-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Song } from './song.entity';
 import type { Repository } from 'typeorm';
 import { Album } from '../album/album.entity';
 import { Artist } from '../artist/entities/artist.entity';
+import { LoggerService } from '../logger/logger.service';
+import { SongCreateDto } from './dto/song-create.dto';
+import { SongUpdateDto } from './dto/song-update.dto';
+import { Song } from './song.entity';
 
 @Injectable()
 export class SongService {
@@ -59,6 +59,8 @@ export class SongService {
   // }
 
   getSongs(): Promise<Song[]> {
+    // QueryBuilder alternative to repository.find({ relations, order, take, skip }).
+    // Prefer this style when query shape is expected to grow with conditional joins/filters.
     return this.songRepository
       .createQueryBuilder('song')
       .leftJoinAndSelect('song.album', 'album')
@@ -86,6 +88,7 @@ export class SongService {
     //   where: { id },
     // });
 
+    // QueryBuilder alternative to findOne({ where: { id } }) for explicit SQL-like control.
     const song = await this.songRepository
       .createQueryBuilder('song')
       .where('song.id = :id', { id })
@@ -144,6 +147,7 @@ export class SongService {
 
     // const createdSong = await this.songRepository.save(newSong);
 
+    // Insert via QueryBuilder; equivalent to repository.insert(body) with explicit SQL pipeline.
     const createdSongRaw = await this.songRepository
       .createQueryBuilder('song')
       .insert()
