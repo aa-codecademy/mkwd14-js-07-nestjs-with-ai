@@ -24,6 +24,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
 import { Album } from '../album/album.entity';
 import { Artist } from '../artist/entities/artist.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
@@ -31,9 +32,11 @@ import { Playlist } from '../playlist/entities/playlist.entity';
 @Entity()
 export class Song {
   @PrimaryGeneratedColumn('uuid')
+  @ApiProperty({ example: 'd3f9b5aa-2d8f-4ae5-aad6-8d80d6a97b7f' })
   id!: string;
 
   @Column({ length: 200 })
+  @ApiProperty({ example: 'Bohemian Rhapsody' })
   title!: string;
 
   // add positive number check constraint
@@ -45,6 +48,7 @@ export class Song {
   @Column({
     type: 'int',
   })
+  @ApiProperty({ example: 245, type: 'integer' })
   durationSeconds!: number;
 
   /**
@@ -55,6 +59,7 @@ export class Song {
   @Column({
     default: false,
   })
+  @ApiProperty({ example: false })
   isExplicit!: boolean;
 
   /**
@@ -62,6 +67,11 @@ export class Song {
    * so this column is NOT nullable. Pairs with the `artist` relation below.
    */
   @Column('uuid')
+  @ApiProperty({
+    description: 'UUID of the artist who performs the song',
+    format: 'uuid',
+    example: 'd3f9b5aa-2d8f-4ae5-aad6-8d80d6a97b7f',
+  })
   artistId!: string;
 
   /**
@@ -77,6 +87,7 @@ export class Song {
    *     e.g. `artist.songs`.
    */
   @ManyToOne(() => Artist, (artist) => artist.songs)
+  @ApiProperty({ type: () => Artist })
   artist!: Artist;
 
   /**
@@ -85,6 +96,11 @@ export class Song {
    * which is non-null because every album must have a creator.
    */
   @Column({ type: 'uuid', nullable: true })
+  @ApiProperty({
+    description: 'UUID of the album containing the song',
+    format: 'uuid',
+    nullable: true,
+  })
   albumId!: string;
 
   /**
@@ -94,6 +110,7 @@ export class Song {
    * eagerly loads the parent album.
    */
   @ManyToOne(() => Album, (album) => album.songs)
+  @ApiProperty({ type: () => Album, nullable: true })
   album!: Album;
 
   /**
@@ -114,14 +131,22 @@ export class Song {
    *     adding/removing songs from a playlist goes through `PlaylistService`.
    */
   @ManyToMany(() => Playlist, (playlist) => playlist.songs)
+  @ApiProperty({
+    type: () => Playlist,
+    isArray: true,
+    description: 'Playlists that include this song',
+  })
   playlists!: Playlist[];
 
   @CreateDateColumn()
+  @ApiProperty({ type: Date })
   createdAt!: Date;
 
   @UpdateDateColumn()
+  @ApiProperty({ type: Date, nullable: true })
   updatedAt!: Date | null;
 
   @DeleteDateColumn()
+  @ApiProperty({ type: Date, nullable: true })
   deletedAt!: Date | null;
 }

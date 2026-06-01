@@ -29,28 +29,61 @@ import {
 import { AlbumService } from './album.service';
 import { AlbumCreateDto } from './dto/album-create.dto';
 import { AlbumUpdateDto } from './dto/album-update.dto';
-import type { Album } from './album.entity';
+import { Album } from './album.entity';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 // @UsePipes(new ValidationPipe()) // ← controller-level pipe (kept commented; global pipe wins)
+@ApiTags('Album')
 @Controller('album')
 export class AlbumController {
   constructor(private readonly albumService: AlbumService) {}
 
+  @ApiOperation({ summary: 'Create a new album' })
+  @ApiCreatedResponse({
+    description: 'Album has been successfully created',
+    type: Album,
+  })
   @Post()
   create(@Body() body: AlbumCreateDto): Promise<Album> {
     return this.albumService.create(body);
   }
 
+  @ApiOperation({ summary: 'List all albums' })
+  @ApiOkResponse({
+    description: 'Albums are successfully returned',
+    type: Album,
+    isArray: true,
+  })
   @Get()
   findAll(): Promise<Album[]> {
     return this.albumService.findAll();
   }
 
+  @ApiOperation({ summary: 'Get an album by ID' })
+  @ApiOkResponse({ description: 'Album is successfully returned', type: Album })
+  @ApiNotFoundResponse({
+    description: 'Album with the given ID does not exist',
+  })
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Album> {
     return this.albumService.findOne(id);
   }
 
+  @ApiOperation({ summary: 'Update an album' })
+  @ApiOkResponse({
+    description: 'Album has been successfully updated',
+    type: Album,
+  })
+  @ApiNotFoundResponse({
+    description: 'Album with the given ID does not exist',
+  })
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -59,6 +92,8 @@ export class AlbumController {
     return this.albumService.update(id, updateAlbumDto);
   }
 
+  @ApiOperation({ summary: 'Delete an album' })
+  @ApiNoContentResponse({ description: 'Album has been successfully deleted' })
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.albumService.remove(id);

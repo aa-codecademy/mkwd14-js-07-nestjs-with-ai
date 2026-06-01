@@ -49,13 +49,24 @@ export class SongService {
    * `relations: { album: true }` adds a LEFT JOIN to `album`.
    * (Paginate me in production.)
    */
+  // getSongs(): Promise<Song[]> {
+  //   return this.songRepository.find({
+  //     relations: {
+  //       album: true,
+  //       // playlists: true,
+  //     },
+  //   });
+  // }
+
   getSongs(): Promise<Song[]> {
-    return this.songRepository.find({
-      relations: {
-        album: true,
-        // playlists: true,
-      },
-    });
+    return this.songRepository
+      .createQueryBuilder('song')
+      .leftJoinAndSelect('song.album', 'album')
+      .leftJoinAndSelect('song.artist', 'artist')
+      .orderBy('song.createdAt', 'DESC')
+      .take(10)
+      .skip(0)
+      .getMany();
   }
 
   /**
@@ -71,9 +82,14 @@ export class SongService {
    */
   async getSongById(id: string): Promise<Song> {
     this.logger.debug('getSongById:', id);
-    const song = await this.songRepository.findOne({
-      where: { id },
-    });
+    // const song = await this.songRepository.findOne({
+    //   where: { id },
+    // });
+
+    const song = await this.songRepository
+      .createQueryBuilder('song')
+      .where('song.id = :id', { id })
+      .getOne();
 
     if (!song) {
       throw new NotFoundException(`Song with id ${id} not found`);
@@ -124,11 +140,19 @@ export class SongService {
       );
     }
 
-    const newSong = this.songRepository.create(body);
+    // const newSong = this.songRepository.create(body);
 
-    const createdSong = await this.songRepository.save(newSong);
+    // const createdSong = await this.songRepository.save(newSong);
 
-    return createdSong;
+    const createdSongRaw = await this.songRepository
+      .createQueryBuilder('song')
+      .insert()
+      .values(body)
+      .execute();
+
+    const id = createdSongRaw.identifiers[0].id as string;
+
+    return this.getSongById(id);
   }
 
   /**
@@ -160,7 +184,7 @@ export class SongService {
       }
     }
 
-    if (!body.artistId) {
+    if (body.artistId) {
       const artist = await this.artistRepository.findOneBy({
         id: body.artistId,
       });
@@ -172,15 +196,28 @@ export class SongService {
       }
     }
 
-    await this.getSongById(id);
+    const song = await this.getSongById(id);
 
-    await this.songRepository.update(id, body);
+    // await this.songRepository.update(id, body);
+
+    await this.songRepository
+      .createQueryBuilder('song')
+      .update(Song)
+      .set({ ...song, ...body })
+      .where('song.id = :id', { id })
+      .execute();
 
     return this.songRepository.findOneBy({ id });
   }
 
   /** Soft delete — `deletedAt` set to NOW(), row excluded from future `find()`s. */
   async deleteSong(id: string): Promise<void> {
-    await this.songRepository.softDelete(id);
+    // await this.songRepository.softDelete(id);
+
+    await this.songRepository
+      .createQueryBuilder('song')
+      .softDelete()
+      .where('song.id = :id', { id })
+      .execute();
   }
 }

@@ -9,6 +9,7 @@
  * complete list. Either is a valid REST design; this lesson picks `PUT`
  * because it's the simpler model to reason about.
  */
+import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsUUID } from 'class-validator';
 
 export class PlaylistUpdateSongs {
@@ -20,6 +21,11 @@ export class PlaylistUpdateSongs {
    */
   @IsArray()
   @IsUUID('4', { each: true })
+  @ApiProperty({
+    type: [String],
+    description: 'UUIDs of songs to set on the playlist',
+    example: ['d3f9b5aa-2d8f-4ae5-aad6-8d80d6a97b7f'],
+  })
   songIds!: string[];
 }
 

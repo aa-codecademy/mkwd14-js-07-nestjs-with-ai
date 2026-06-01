@@ -24,17 +24,21 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
 import { Song } from '../../song/song.entity';
 
 @Entity()
 export class Playlist {
   @PrimaryGeneratedColumn('uuid')
+  @ApiProperty({ example: 'd3f9b5aa-2d8f-4ae5-aad6-8d80d6a97b7f' })
   id!: string;
 
   @Column()
+  @ApiProperty({ example: 'Roadtrip' })
   title!: string;
 
   @Column()
+  @ApiProperty({ example: 'Dawn Wilson' })
   author!: string;
 
   /**
@@ -68,16 +72,24 @@ export class Playlist {
   @JoinTable({
     name: 'playlist_songs',
   })
+  @ApiProperty({
+    type: () => Song,
+    isArray: true,
+    description: 'Songs included in the playlist',
+  })
   songs!: Song[];
 
   /** Auto-managed audit columns — see album.entity.ts for details. */
   @CreateDateColumn()
+  @ApiProperty({ type: Date })
   createdAt!: Date;
 
   @UpdateDateColumn()
+  @ApiProperty({ type: Date, nullable: true })
   updatedAt!: Date | null;
 
   /** Enables `repository.softDelete(...)` for this entity. */
   @DeleteDateColumn()
+  @ApiProperty({ type: Date, nullable: true })
   deletedAt!: Date | null;
 }

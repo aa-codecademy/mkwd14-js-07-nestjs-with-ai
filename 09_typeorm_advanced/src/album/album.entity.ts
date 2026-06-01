@@ -21,9 +21,10 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
 import { Artist } from '../artist/entities/artist.entity';
 import { Song } from '../song/song.entity';
-import type { AlbumEditionDto } from './dto/album-create.dto';
+import { AlbumEditionDto } from './dto/album-create.dto';
 
 /**
  * `@Entity()` marks the class as a database table.
@@ -45,6 +46,7 @@ export class Album {
    * are safe to expose in URLs.
    */
   @PrimaryGeneratedColumn('uuid')
+  @ApiProperty({ example: 'd3f9b5aa-2d8f-4ae5-aad6-8d80d6a97b7f' })
   id!: string;
 
   /**
@@ -52,6 +54,7 @@ export class Album {
    * Common options: `type`, `length`, `nullable`, `default`, `unique`, `name`.
    */
   @Column({ length: 200 })
+  @ApiProperty({ example: 'Random Access Memories' })
   title!: string;
 
   /**
@@ -62,6 +65,12 @@ export class Album {
   @Column({
     type: 'timestamptz',
     nullable: true,
+  })
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    example: '2024-09-15T00:00:00.000Z',
   })
   releaseDate!: Date | null;
 
@@ -84,6 +93,7 @@ export class Album {
     type: 'jsonb',
     nullable: true,
   })
+  @ApiProperty({ type: () => AlbumEditionDto, isArray: true, nullable: true })
   editions!: AlbumEditionDto[];
 
   /**
@@ -97,6 +107,11 @@ export class Album {
    * on the `song` table (see `Song.albumId`).
    */
   @OneToMany(() => Song, (song) => song.album)
+  @ApiProperty({
+    type: () => Song,
+    isArray: true,
+    description: 'Tracks included in the album',
+  })
   songs!: Song[];
 
   /**
@@ -109,6 +124,11 @@ export class Album {
    *   - it makes the schema obvious to anyone reading the code.
    */
   @Column('uuid')
+  @ApiProperty({
+    description: 'UUID of the album artist',
+    format: 'uuid',
+    example: 'd3f9b5aa-2d8f-4ae5-aad6-8d80d6a97b7f',
+  })
   artistId!: string;
 
   /**
@@ -127,6 +147,7 @@ export class Album {
    *   - `{ nullable: false }`      → make the FK column NOT NULL
    */
   @ManyToOne(() => Artist, (artist) => artist.albums)
+  @ApiProperty({ type: () => Artist })
   artist!: Artist;
 
   /**
@@ -134,6 +155,7 @@ export class Album {
    * is saved. You never write to it manually.
    */
   @CreateDateColumn()
+  @ApiProperty({ type: Date })
   createdAt!: Date;
 
   /**
@@ -142,6 +164,7 @@ export class Album {
    * timestamps without writing any code.
    */
   @UpdateDateColumn()
+  @ApiProperty({ type: Date, nullable: true })
   updatedAt!: Date | null;
 
   /**
@@ -156,5 +179,6 @@ export class Album {
    * period, restoring accidentally deleted resources.
    */
   @DeleteDateColumn()
+  @ApiProperty({ type: Date, nullable: true })
   deletedAt!: Date | null;
 }

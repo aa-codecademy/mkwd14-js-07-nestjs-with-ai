@@ -24,26 +24,56 @@ import { PlaylistService } from './playlist.service';
 import { PlaylistCreateDto } from './dto/playlist-create.dto';
 import { PlaylistUpdateDto } from './dto/playlist-update.dto';
 import { PlaylistUpdateSongs } from './dto/playlist-update-songs.dto';
+import { Playlist } from './entities/playlist.entity';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
+@ApiTags('Playlist')
 @Controller('playlist')
 export class PlaylistController {
   constructor(private readonly playlistService: PlaylistService) {}
 
+  @ApiOperation({ summary: 'Create a new playlist' })
+  @ApiCreatedResponse({
+    description: 'Playlist has been successfully created',
+    type: Playlist,
+  })
   @Post()
   create(@Body() body: PlaylistCreateDto) {
     return this.playlistService.create(body);
   }
 
+  @ApiOperation({ summary: 'List all playlists' })
+  @ApiOkResponse({
+    description: 'Playlists are successfully returned',
+    type: Playlist,
+    isArray: true,
+  })
   @Get()
   findAll() {
     return this.playlistService.findAll();
   }
 
+  @ApiOperation({ summary: 'Get a playlist by ID' })
+  @ApiOkResponse({
+    description: 'Playlist is successfully returned',
+    type: Playlist,
+  })
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.playlistService.findOne(id);
   }
 
+  @ApiOperation({ summary: 'Update a playlist' })
+  @ApiOkResponse({
+    description: 'Playlist has been successfully updated',
+    type: Playlist,
+  })
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -68,6 +98,11 @@ export class PlaylistController {
    * small ergonomic win — the handler signature documents exactly which
    * fields it needs.
    */
+  @ApiOperation({ summary: 'Replace songs in a playlist' })
+  @ApiOkResponse({
+    description: 'Playlist songs have been successfully replaced',
+    type: Playlist,
+  })
   @Put(':id/songs')
   addSongs(
     @Param('id', ParseUUIDPipe) id: string,
@@ -76,6 +111,10 @@ export class PlaylistController {
     return this.playlistService.addSongs(id, songIds);
   }
 
+  @ApiOperation({ summary: 'Delete a playlist' })
+  @ApiNoContentResponse({
+    description: 'Playlist has been successfully deleted',
+  })
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.playlistService.remove(id);

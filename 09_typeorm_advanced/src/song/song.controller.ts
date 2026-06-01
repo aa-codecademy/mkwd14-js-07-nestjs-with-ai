@@ -21,27 +21,53 @@ import {
 import { SongService } from './song.service';
 import { SongCreateDto } from './dto/song-create.dto';
 import { SongUpdateDto } from './dto/song-update.dto';
-import type { Song } from './song.entity';
+import { Song } from './song.entity';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
+@ApiTags('Song')
 @Controller('song')
 export class SongController {
   constructor(private readonly songService: SongService) {}
 
+  @ApiOperation({ summary: 'List all songs' })
+  @ApiOkResponse({
+    description: 'Songs are successfully returned',
+    type: Song,
+    isArray: true,
+  })
   @Get()
   getSongs(): Promise<Song[]> {
     return this.songService.getSongs();
   }
 
+  @ApiOperation({ summary: 'Get a song by ID' })
+  @ApiOkResponse({ description: 'Song is successfully returned', type: Song })
   @Get(':id')
   getSongById(@Param('id', ParseUUIDPipe) id: string): Promise<Song> {
     return this.songService.getSongById(id);
   }
 
+  @ApiOperation({ summary: 'Create a new song' })
+  @ApiCreatedResponse({
+    description: 'Song has been successfully created',
+    type: Song,
+  })
   @Post()
   createSong(@Body() body: SongCreateDto): Promise<Song> {
     return this.songService.createSong(body);
   }
 
+  @ApiOperation({ summary: 'Update a song' })
+  @ApiOkResponse({
+    description: 'Song has been successfully updated',
+    type: Song,
+  })
   @Patch(':id')
   updateSong(
     @Param('id', ParseUUIDPipe) id: string,
@@ -50,6 +76,8 @@ export class SongController {
     return this.songService.updateSong(id, body);
   }
 
+  @ApiOperation({ summary: 'Delete a song' })
+  @ApiNoContentResponse({ description: 'Song has been successfully deleted' })
   @Delete(':id')
   @HttpCode(204)
   async deleteSong(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

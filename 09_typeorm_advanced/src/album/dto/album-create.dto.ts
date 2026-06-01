@@ -12,6 +12,7 @@
  * knows about a non-primitive type if you give it the `@Type(() => Class)`
  * hint.
  */
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
@@ -36,22 +37,31 @@ import {
 export class AlbumEditionDto {
   @IsString()
   @Length(2, 40)
+  @ApiProperty({ example: 'Vinyl' })
   format!: string;
 
   @IsInt()
   @IsPositive()
+  @ApiProperty({ example: 100 })
   copies!: number;
 
   @IsBoolean()
+  @ApiProperty({ example: false })
   isLimited!: boolean;
 }
 
 export class AlbumCreateDto {
   @IsString()
   @Length(1, 200)
+  @ApiProperty({ example: 'Random Access Memories' })
   title!: string;
 
   @IsUUID('4')
+  @ApiProperty({
+    description: 'UUID of the artist who created the album',
+    format: 'uuid',
+    example: 'd3f9b5aa-2d8f-4ae5-aad6-8d80d6a97b7f',
+  })
   artistId!: string;
 
   /**
@@ -69,6 +79,11 @@ export class AlbumCreateDto {
   @IsOptional()
   @Type(() => Date)
   @IsDate()
+  @ApiPropertyOptional({
+    type: String,
+    format: 'date-time',
+    example: '2024-09-15T00:00:00.000Z',
+  })
   releaseDate?: Date;
 
   /**
@@ -89,5 +104,6 @@ export class AlbumCreateDto {
   @ArrayNotEmpty()
   @Type(() => AlbumEditionDto)
   @ValidateNested({ each: true })
+  @ApiProperty({ type: () => AlbumEditionDto, isArray: true })
   editions!: AlbumEditionDto[];
 }
