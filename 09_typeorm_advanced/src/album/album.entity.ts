@@ -21,7 +21,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Artist } from '../artist/entitites/artist.entity';
+import { Artist } from '../artist/entities/artist.entity';
 import { Song } from '../song/song.entity';
 import type { AlbumEditionDto } from './dto/album-create.dto';
 

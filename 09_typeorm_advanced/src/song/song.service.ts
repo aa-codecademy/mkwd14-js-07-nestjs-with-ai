@@ -22,7 +22,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from './song.entity';
 import type { Repository } from 'typeorm';
 import { Album } from '../album/album.entity';
-import { Artist } from '../artist/entitites/artist.entity';
+import { Artist } from '../artist/entities/artist.entity';
 
 @Injectable()
 export class SongService {

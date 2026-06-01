@@ -33,6 +33,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Genre } from '../../common/types/genre';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * Nested DTO used as the type of `ArtistCreateDto.profile`.
@@ -48,41 +49,69 @@ import { Genre } from '../../common/types/genre';
 class ArtistProfileDto {
   @IsString()
   @Length(2, 60)
+  @ApiProperty({
+    example: 'USA',
+  })
   country!: string;
 
   @IsOptional()
   @IsString()
   @Length(2, 100)
+  @ApiPropertyOptional({
+    example: 'Los Angeles',
+  })
   city?: string;
 
   @IsOptional()
   @IsEmail()
+  @ApiPropertyOptional({
+    example: 'drake@yahoo.com',
+  })
   bookingEmail?: string;
 
   @IsOptional()
   @IsUrl({ require_protocol: true })
+  @ApiPropertyOptional({
+    example: 'https://drake.net',
+  })
   website?: string;
 }
 
 export class ArtistCreateDto {
   @IsString()
   @Length(1, 120)
+  @ApiProperty({
+    example: 'Drake',
+    minLength: 1,
+    maxLength: 120,
+  })
   name!: string;
 
   @IsEnum(Genre)
+  @ApiProperty({
+    enum: Genre,
+    example: Genre.hipHop,
+  })
   genre!: Genre;
 
   @IsBoolean()
+  @ApiProperty()
   isActive!: boolean;
 
   @ValidateNested()
   @Type(() => ArtistProfileDto)
+  @ApiProperty({
+    type: ArtistProfileDto,
+  })
   profile!: ArtistProfileDto;
 
   @IsOptional()
   @IsInt()
   @Min(1900)
   @Max(new Date().getFullYear())
+  @ApiPropertyOptional({
+    example: 2000,
+  })
   debutYear?: number;
 
   @IsOptional()
@@ -92,5 +121,12 @@ export class ArtistCreateDto {
   @ArrayUnique()
   @IsString({ each: true })
   @Length(2, 30, { each: true })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['Drake'],
+    minItems: 1,
+    maxItems: 5,
+    uniqueItems: true,
+  })
   aliases?: string[];
 }

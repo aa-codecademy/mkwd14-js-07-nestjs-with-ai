@@ -33,9 +33,16 @@ import {
 import { ArtistService } from './artist.service';
 import { ArtistCreateDto } from './dto/artist-create.dto';
 import { ArtistPartialUpdateDto } from './dto/artist-update.dto';
-import { Artist } from './entitites/artist.entity';
+import { Artist } from './entities/artist.entity';
 import { ArtistSearchQueryDto } from './dto/artist-search-query.dto';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 @ApiTags('Artist')
 @Controller('artist')
@@ -56,30 +63,44 @@ export class ArtistController {
     return this.artistsService.getArtists(query);
   }
 
+  // @Param() params: GetArtistByIdDto
+  @ApiOperation({
+    summary: 'Get an artist by ID',
+  })
+  @ApiOkResponse({
+    description: 'Artist is successfully returned',
+    type: Artist,
+  })
+  @ApiNotFoundResponse({
+    description: `Artist with ID doesn't exist`,
+  })
   @Get(':id')
   getArtistById(@Param('id', ParseUUIDPipe) id: string): Promise<Artist> {
     return this.artistsService.getArtistById(id);
   }
 
+  @ApiOperation({
+    summary: 'Create a new artist',
+  })
+  @ApiCreatedResponse({
+    description: 'Artist has been successfully created',
+    type: Artist,
+  })
   @Post()
   createArtist(@Body() body: ArtistCreateDto): Promise<Artist> {
     return this.artistsService.createArtist(body);
   }
 
-  /**
-   * PUT example (commented out so PATCH is the only working endpoint).
-   *
-   * Note how PUT would use a "full" DTO (`ArtistUpdateDto`) where required
-   * fields are NOT optional — PUT replaces the whole resource.
-   */
-  // @Put(':id')
-  // updateArtist(
-  //   @Param('id', ParseUUIDPipe) id: string,
-  //   @Body() body: ArtistUpdateDto,
-  // ): ArtistDto {
-  //   return this.artistsService.updateArtist(id, body);
-  // }
-
+  @ApiOperation({
+    summary: 'Update an artist',
+  })
+  @ApiOkResponse({
+    description: 'Artist has been successfully updated',
+    type: Artist,
+  })
+  @ApiNotFoundResponse({
+    description: `Artist doesn't exist`,
+  })
   @Patch(':id')
   partiallyUpdateArtist(
     @Param('id', ParseUUIDPipe) id: string,
@@ -92,6 +113,12 @@ export class ArtistController {
    * `@HttpCode(204)` overrides the default 201 for DELETE so we conform to
    * REST conventions: "no content" on success.
    */
+  @ApiOperation({
+    summary: 'Delete an artist',
+  })
+  @ApiNoContentResponse({
+    description: 'Artist has been successfully deleted',
+  })
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteArtist(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

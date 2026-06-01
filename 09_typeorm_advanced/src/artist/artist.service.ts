@@ -27,9 +27,9 @@ import { LoggerService } from '../logger/logger.service';
 import { ArtistCreateDto } from './dto/artist-create.dto';
 import { ArtistPartialUpdateDto } from './dto/artist-update.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Artist } from './entitites/artist.entity';
+import { Artist } from './entities/artist.entity';
 import { ILike, type Repository } from 'typeorm';
-import { ArtistProfile } from './entitites/artist-profile.entity';
+import { ArtistProfile } from './entities/artist-profile.entity';
 import { ArtistSearchQueryDto } from './dto/artist-search-query.dto';
 
 @Injectable()

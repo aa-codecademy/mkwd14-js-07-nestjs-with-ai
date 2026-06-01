@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NestJS Music Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>NestJS + TypeORM Demo</h1>
+        <p>Simple frontend served from NestJS public folder.</p>
+      </header>
+
+      <section class="card">
+        <h2>Create Artist</h2>
+        <form id="artist-form">
+          <input name="name" placeholder="Artist name" required />
+          <select name="genre" required>
+            <option value="rock">rock</option>
+            <option value="pop">pop</option>
+            <option value="jazz">jazz</option>
+            <option value="hip-hop">hip-hop</option>
+            <option value="classical">classical</option>
+            <option value="electronic">electronic</option>
+          </select>
+          <input name="country" placeholder="Country" required />
+          <button type="submit">Create Artist</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Create Song</h2>
+        <form id="song-form">
+          <input name="title" placeholder="Song title" required />
+          <input
+            name="durationSeconds"
+            type="number"
+            min="1"
+            max="300"
+            placeholder="Duration (seconds)"
+            required
+          />
+          <input name="artistId" placeholder="Artist UUID" required />
+          <label class="checkbox-row">
+            <input name="isExplicit" type="checkbox" />
+            Explicit
+          </label>
+          <button type="submit">Create Song</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Data</h2>
+        <div class="actions">
+          <button id="load-artists">Load Artists</button>
+          <button id="load-songs">Load Songs</button>
+          <a href="/api-docs" target="_blank" rel="noreferrer">Swagger</a>
+        </div>
+        <pre id="output">Click "Load Artists" or "Load Songs"</pre>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+  </html>

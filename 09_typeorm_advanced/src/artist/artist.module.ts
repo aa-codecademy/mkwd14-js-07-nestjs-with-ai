@@ -26,8 +26,8 @@ import { Module } from '@nestjs/common';
 import { ArtistController } from './artist.controller';
 import { ArtistService } from './artist.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Artist } from './entitites/artist.entity';
-import { ArtistProfile } from './entitites/artist-profile.entity';
+import { Artist } from './entities/artist.entity';
+import { ArtistProfile } from './entities/artist-profile.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Artist, ArtistProfile])],

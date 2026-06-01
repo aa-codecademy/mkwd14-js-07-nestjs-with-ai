@@ -27,7 +27,7 @@ import { SongService } from './song.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Song } from './song.entity';
 import { Album } from '../album/album.entity';
-import { Artist } from '../artist/entitites/artist.entity';
+import { Artist } from '../artist/entities/artist.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Song, Album, Artist]), ArtistModule],

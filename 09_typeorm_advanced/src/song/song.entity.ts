@@ -25,7 +25,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Album } from '../album/album.entity';
-import { Artist } from '../artist/entitites/artist.entity';
+import { Artist } from '../artist/entities/artist.entity';
 import { Playlist } from '../playlist/entities/playlist.entity';
 
 @Entity()
