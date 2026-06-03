@@ -26,6 +26,14 @@ async function bootstrap() {
     .setTitle('MusicBox Application')
     .setDescription('API for music application')
     .setVersion('1.0.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+      'access-token',
+    )
     .build();
 
   // Generate OpenAPI document from controller + DTO metadata.

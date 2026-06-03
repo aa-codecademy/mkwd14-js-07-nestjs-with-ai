@@ -14,7 +14,7 @@ export class User {
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @PrimaryGeneratedColumn('uuid')
-  id!: number;
+  id!: string;
 
   @ApiProperty({ example: 'user@music.com' })
   @Column({ unique: true })

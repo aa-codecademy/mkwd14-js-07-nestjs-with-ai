@@ -29,6 +29,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ArtistService } from './artist.service';
 import { ArtistCreateDto } from './dto/artist-create.dto';
@@ -36,6 +37,7 @@ import { ArtistPartialUpdateDto } from './dto/artist-update.dto';
 import { Artist } from './entities/artist.entity';
 import { ArtistSearchQueryDto } from './dto/artist-search-query.dto';
 import {
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -43,8 +45,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 
 @ApiTags('Artist')
+@ApiBearerAuth('access-token')
 @Controller('artist')
 export class ArtistController {
   constructor(private readonly artistsService: ArtistService) {}
@@ -58,6 +62,7 @@ export class ArtistController {
     description: 'Artists are successfully returned',
     type: Artist,
   })
+  @UseGuards(JwtAuthGuard)
   @Get()
   getArtists(@Query() query: ArtistSearchQueryDto): Promise<Artist[]> {
     return this.artistsService.getArtists(query);
