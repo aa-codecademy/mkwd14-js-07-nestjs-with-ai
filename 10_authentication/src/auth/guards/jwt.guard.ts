@@ -1,5 +1,7 @@
 import { Injectable, type ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 /**
  * JwtAuthGuard — the door-bouncer for protected endpoints.
@@ -37,13 +39,22 @@ import { AuthGuard } from '@nestjs/passport';
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor() {
+  constructor(private readonly reflector: Reflector) {
     super();
   }
 
   // canActivate is called by the NestJS pipeline for every guarded request.
   // We delegate to the parent AuthGuard which runs the full Passport JWT flow.
   canActivate(context: ExecutionContext) {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     return super.canActivate(context);
   }
 }

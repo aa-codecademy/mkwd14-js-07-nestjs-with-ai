@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/user.entity';
@@ -7,6 +12,7 @@ import { LoggerService } from '../logger/logger.service';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtPayload } from './types/jwt';
 import { ConfigService } from '@nestjs/config/dist/config.service';
+import type { RefreshDto } from './dto/refresh.dto';
 
 /**
  * AuthService — the brain of the authentication system.
@@ -110,14 +116,70 @@ export class AuthService {
         expiresIn: this.configService.get('JWT_EXPIRES_IN'),
       });
 
+      const refreshToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
+      });
+
+      // const days = parseInt(
+      //   this.configService.get('JWT_REFRESH_EXPIRES_IN')!,
+      //   10,
+      // );
+
+      // const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+      // For testing purposes
+      const minutes = 2;
+      const expiry = new Date(Date.now() + minutes * 60 * 1000);
+      await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
+
       // Return the user record (passwordHash is excluded by { select: false })
       // alongside the token so the client can bootstrap its UI immediately
       // without a separate GET /me call.
-      return { user, accessToken };
+      return { user, accessToken, refreshToken };
     } catch (error: unknown) {
       // Log the real error for debugging, but NEVER forward it to the caller.
       this.logger.error('AuthService | Login error:', JSON.stringify(error));
       throw new BadRequestException('Invalid credentials');
+    }
+  }
+
+  async refresh(body: RefreshDto) {
+    try {
+      const user = await this.userService.getUserByRefreshToken(
+        body.userId,
+        body.refreshToken,
+      );
+
+      const payload: JwtPayload = { sub: user.id, username: user.email };
+
+      const accessToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: this.configService.get('JWT_EXPIRES_IN'),
+      });
+
+      const refreshToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
+      });
+
+      // const days = parseInt(
+      //   this.configService.get('JWT_REFRESH_EXPIRES_IN')!,
+      //   10,
+      // );
+
+      // const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+      // For testing purposes
+      const minutes = 2;
+      const expiry = new Date(Date.now() + minutes * 60 * 1000);
+      await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
+
+      return { user, accessToken, refreshToken };
+    } catch (error: unknown) {
+      this.logger.error('AuthService: Refresh: ', JSON.stringify(error));
+
+      throw new UnauthorizedException('Invalid or expired token');
     }
   }
 }

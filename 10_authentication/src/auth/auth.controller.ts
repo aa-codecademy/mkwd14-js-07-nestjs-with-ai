@@ -7,10 +7,13 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { RegisterDto } from './dto/register.dto';
 import { User } from '../user/user.entity';
 import { LoginDto } from './dto/login.dto';
+import { RefreshDto } from './dto/refresh.dto';
+import { Public } from './decorators/public.decorator';
 
 /**
  * AuthController — HTTP entry point for all authentication endpoints.
@@ -31,6 +34,7 @@ import { LoginDto } from './dto/login.dto';
  * responses this endpoint can return so developers can explore the API at /docs.
  */
 @ApiTags('Authentication')
+@Public()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -85,5 +89,17 @@ export class AuthController {
   @Post('login')
   login(@Body() credentials: LoginDto) {
     return this.authService.login(credentials);
+  }
+
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiOkResponse({
+    description: 'Access token refreshed successfully. Token pair returned.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Invalid or expired refresh token.',
+  })
+  @Post('refresh')
+  refresh(@Body() body: RefreshDto) {
+    return this.authService.refresh(body);
   }
 }

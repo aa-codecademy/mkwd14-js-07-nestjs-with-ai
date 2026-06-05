@@ -90,7 +90,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       const user = await this.userService.getUserByEmail(payload.username);
 
       // Return only the fields controllers need. This becomes req.user.
-      return { id: user.id, username: user.email };
+      return { id: user.id, username: user.email, role: user.role };
     } catch {
       // If getUserByEmail throws (user deleted after token was issued, DB error,
       // etc.) we surface a uniform 401. We never tell the caller WHY — leaking

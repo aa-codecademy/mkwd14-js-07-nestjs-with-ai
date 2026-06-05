@@ -1,3 +1,5 @@
+import type { UserRole } from '../../common/types/user-role';
+
 /**
  * AuthUser — the minimal user object that Passport attaches to every
  * authenticated request as `request.user`.
@@ -20,4 +22,5 @@
 export interface AuthUser {
   id: string; // UUID of the authenticated user
   username: string; // Email of the authenticated user
+  role: UserRole;
 }

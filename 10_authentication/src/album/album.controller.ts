@@ -31,6 +31,7 @@ import { AlbumCreateDto } from './dto/album-create.dto';
 import { AlbumUpdateDto } from './dto/album-update.dto';
 import { Album } from './album.entity';
 import {
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -41,6 +42,7 @@ import {
 
 // @UsePipes(new ValidationPipe()) // ← controller-level pipe (kept commented; global pipe wins)
 @ApiTags('Album')
+@ApiBearerAuth('access-token')
 @Controller('album')
 export class AlbumController {
   constructor(private readonly albumService: AlbumService) {}

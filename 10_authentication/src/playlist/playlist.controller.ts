@@ -19,6 +19,7 @@ import {
   Delete,
   ParseUUIDPipe,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { PlaylistService } from './playlist.service';
 import { PlaylistCreateDto } from './dto/playlist-create.dto';
@@ -26,14 +27,21 @@ import { PlaylistUpdateDto } from './dto/playlist-update.dto';
 import { PlaylistUpdateSongs } from './dto/playlist-update-songs.dto';
 import { Playlist } from './entities/playlist.entity';
 import {
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../common/types/user-role';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthUser } from '../auth/types/auth-user';
+import { PlaylistOwnershipGuard } from '../auth/guards/playlist-ownership.guard';
 
 @ApiTags('Playlist')
+@ApiBearerAuth('access-token')
 @Controller('playlist')
 export class PlaylistController {
   constructor(private readonly playlistService: PlaylistService) {}
@@ -43,9 +51,10 @@ export class PlaylistController {
     description: 'Playlist has been successfully created',
     type: Playlist,
   })
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Post()
-  create(@Body() body: PlaylistCreateDto) {
-    return this.playlistService.create(body);
+  create(@Body() body: PlaylistCreateDto, @CurrentUser() user: AuthUser) {
+    return this.playlistService.create(body, user);
   }
 
   @ApiOperation({ summary: 'List all playlists' })
@@ -54,6 +63,7 @@ export class PlaylistController {
     type: Playlist,
     isArray: true,
   })
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Get()
   findAll() {
     return this.playlistService.findAll();
@@ -64,6 +74,7 @@ export class PlaylistController {
     description: 'Playlist is successfully returned',
     type: Playlist,
   })
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.playlistService.findOne(id);
@@ -74,7 +85,9 @@ export class PlaylistController {
     description: 'Playlist has been successfully updated',
     type: Playlist,
   })
+  @UseGuards(PlaylistOwnershipGuard)
   @Patch(':id')
+  @Roles(UserRole.USER, UserRole.ADMIN)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: PlaylistUpdateDto,
@@ -103,6 +116,8 @@ export class PlaylistController {
     description: 'Playlist songs have been successfully replaced',
     type: Playlist,
   })
+  @UseGuards(PlaylistOwnershipGuard)
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Put(':id/songs')
   addSongs(
     @Param('id', ParseUUIDPipe) id: string,
@@ -115,6 +130,7 @@ export class PlaylistController {
   @ApiNoContentResponse({
     description: 'Playlist has been successfully deleted',
   })
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.playlistService.remove(id);

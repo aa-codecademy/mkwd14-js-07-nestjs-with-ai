@@ -21,11 +21,13 @@ import {
   Entity,
   JoinTable,
   ManyToMany,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Song } from '../../song/song.entity';
+import type { User } from '../../user/user.entity';
 
 @Entity()
 export class Playlist {
@@ -36,10 +38,6 @@ export class Playlist {
   @Column()
   @ApiProperty({ example: 'Roadtrip' })
   title!: string;
-
-  @Column()
-  @ApiProperty({ example: 'Dawn Wilson' })
-  author!: string;
 
   /**
    * `@ManyToMany` + `@JoinTable()` — the OWNING side.
@@ -78,6 +76,17 @@ export class Playlist {
     description: 'Songs included in the playlist',
   })
   songs!: Song[];
+
+  @Column({ type: 'varchar', nullable: true })
+  ownerId!: string | null;
+
+  @ApiProperty({ description: 'The user that is owner of the playlist' })
+  @ManyToOne('User', 'playlist', {
+    nullable: true,
+    onDelete: 'SET NULL',
+    // eager: false,
+  })
+  owner!: User | null;
 
   /** Auto-managed audit columns — see album.entity.ts for details. */
   @CreateDateColumn()

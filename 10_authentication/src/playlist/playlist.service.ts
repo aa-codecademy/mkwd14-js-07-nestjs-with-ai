@@ -13,6 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Playlist } from './entities/playlist.entity';
 import { In, type Repository } from 'typeorm';
 import { Song } from '../song/song.entity';
+import type { AuthUser } from '../auth/types/auth-user';
 
 @Injectable()
 export class PlaylistService {
@@ -30,8 +31,11 @@ export class PlaylistService {
   ) {}
 
   /** Standard create-and-save. The playlist starts with NO songs (empty `songs`). */
-  async create(body: PlaylistCreateDto): Promise<Playlist> {
-    const newPlaylist = this.playlistRepository.create(body);
+  async create(body: PlaylistCreateDto, user: AuthUser): Promise<Playlist> {
+    const newPlaylist = this.playlistRepository.create({
+      ...body,
+      ownerId: user.id,
+    });
 
     const createdPlaylist = await this.playlistRepository.save(newPlaylist);
 
@@ -47,6 +51,7 @@ export class PlaylistService {
     return this.playlistRepository.find({
       relations: {
         songs: true,
+        owner: true,
       },
     });
   }

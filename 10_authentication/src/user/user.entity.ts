@@ -3,9 +3,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { UserRole } from '../common/types/user-role';
+import type { Playlist } from '../playlist/entities/playlist.entity';
 
 /**
  * User entity — the database table that stores registered accounts.
@@ -49,11 +52,24 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
+  @ApiProperty({ enum: UserRole, example: UserRole.USER })
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role!: UserRole;
+
   // { select: false } — NEVER included in default SELECT queries.
   // This is the bcrypt hash of the original password, never the password itself.
   // No @ApiProperty — intentionally hidden from Swagger and API responses.
   @Column({ select: false })
   passwordHash!: string;
+
+  @Column({ type: 'text', nullable: true, select: false })
+  refreshTokenHash!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true, select: false })
+  refreshTokenExpiry!: Date | null;
+
+  @OneToMany('Playlist', 'owner')
+  playlists!: Playlist[];
 
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   @CreateDateColumn()

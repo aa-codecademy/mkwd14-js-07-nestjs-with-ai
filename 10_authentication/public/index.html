@@ -3,65 +3,407 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NestJS Music Demo</title>
+    <title>NestJS Auth Demo</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="container">
-      <header>
-        <h1>NestJS + TypeORM Demo</h1>
-        <p>Simple frontend served from NestJS public folder.</p>
-      </header>
+    <!-- ─── TOP BAR ─────────────────────────────────────────────────────── -->
+    <header class="topbar">
+      <div class="topbar__brand">
+        <span class="topbar__logo">🎵</span>
+        <span class="topbar__title">NestJS Auth Demo</span>
+      </div>
+      <div class="topbar__user" id="user-status">
+        <span class="badge badge--guest">Not logged in</span>
+      </div>
+    </header>
 
-      <section class="card">
-        <h2>Create Artist</h2>
-        <form id="artist-form">
-          <input name="name" placeholder="Artist name" required />
-          <select name="genre" required>
-            <option value="rock">rock</option>
-            <option value="pop">pop</option>
-            <option value="jazz">jazz</option>
-            <option value="hip-hop">hip-hop</option>
-            <option value="classical">classical</option>
-            <option value="electronic">electronic</option>
-          </select>
-          <input name="country" placeholder="Country" required />
-          <button type="submit">Create Artist</button>
-        </form>
-      </section>
+    <div class="layout">
+      <!-- ─── SIDEBAR ───────────────────────────────────────────────────── -->
+      <nav class="sidebar">
+        <button class="nav-btn active" data-section="auth">🔐 Auth</button>
+        <button class="nav-btn" data-section="artists">🎤 Artists</button>
+        <button class="nav-btn" data-section="songs">🎵 Songs</button>
+        <button class="nav-btn" data-section="albums">💿 Albums</button>
+        <button class="nav-btn" data-section="playlists">📋 Playlists</button>
+        <div class="sidebar__divider"></div>
+        <a class="nav-link" href="/docs" target="_blank">📖 Swagger</a>
+      </nav>
 
-      <section class="card">
-        <h2>Create Song</h2>
-        <form id="song-form">
-          <input name="title" placeholder="Song title" required />
-          <input
-            name="durationSeconds"
-            type="number"
-            min="1"
-            max="300"
-            placeholder="Duration (seconds)"
-            required
-          />
-          <input name="artistId" placeholder="Artist UUID" required />
-          <label class="checkbox-row">
-            <input name="isExplicit" type="checkbox" />
-            Explicit
-          </label>
-          <button type="submit">Create Song</button>
-        </form>
-      </section>
+      <!-- ─── MAIN CONTENT ──────────────────────────────────────────────── -->
+      <main class="content">
 
-      <section class="card">
-        <h2>Data</h2>
-        <div class="actions">
-          <button id="load-artists">Load Artists</button>
-          <button id="load-songs">Load Songs</button>
-          <a href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+        <!-- ═══ AUTH SECTION ══════════════════════════════════════════════ -->
+        <section id="section-auth" class="section active">
+          <div class="section-header">
+            <h2>Authentication Flows</h2>
+            <p class="section-desc">Complete auth flow: register, login, refresh tokens, forgot/reset password, logout.</p>
+          </div>
+
+          <!-- Token Status Panel -->
+          <div class="token-panel" id="token-panel">
+            <div class="token-panel__row">
+              <span class="token-panel__label">Access Token</span>
+              <span class="token-panel__value" id="token-display">—</span>
+            </div>
+            <div class="token-panel__row">
+              <span class="token-panel__label">Refresh Token</span>
+              <span class="token-panel__value" id="refresh-display">—</span>
+            </div>
+            <div class="token-panel__row">
+              <span class="token-panel__label">User ID</span>
+              <span class="token-panel__value mono" id="userid-display">—</span>
+            </div>
+          </div>
+
+          <!-- Auth Tabs -->
+          <div class="tabs">
+            <button class="tab active" data-tab="register">Register</button>
+            <button class="tab" data-tab="login">Login</button>
+            <button class="tab" data-tab="forgot">Forgot Password</button>
+            <button class="tab" data-tab="reset">Reset Password</button>
+            <button class="tab" data-tab="refresh">Refresh Token</button>
+            <button class="tab" data-tab="logout">Logout</button>
+          </div>
+
+          <!-- Tab: Register -->
+          <div class="tab-content active" id="tab-register">
+            <div class="card">
+              <h3>Create a new account</h3>
+              <p class="hint">New accounts are created with <code>role: user</code> by default. Promote via DB to <code>admin</code>.</p>
+              <form id="register-form">
+                <div class="field">
+                  <label>Email</label>
+                  <input name="email" type="email" placeholder="user@music.com" required />
+                </div>
+                <div class="field">
+                  <label>Password <small>(min 8 chars)</small></label>
+                  <input name="password" type="password" placeholder="••••••••" minlength="8" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Register</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tab: Login -->
+          <div class="tab-content" id="tab-login">
+            <div class="card">
+              <h3>Login</h3>
+              <p class="hint">Returns <code>accessToken</code> (15m) + <code>refreshToken</code> (7d). Both are stored in memory.</p>
+              <form id="login-form">
+                <div class="field">
+                  <label>Email</label>
+                  <input name="email" type="email" placeholder="user@music.com" required />
+                </div>
+                <div class="field">
+                  <label>Password</label>
+                  <input name="password" type="password" placeholder="••••••••" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Login</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tab: Forgot Password -->
+          <div class="tab-content" id="tab-forgot">
+            <div class="card">
+              <h3>Forgot Password</h3>
+              <p class="hint">
+                Generates a 1-hour reset token.
+                <strong>In production</strong> this would be emailed — here it's returned in the response so you can test it.
+                Copy the <code>resetToken</code> from the output and use it in the Reset tab.
+              </p>
+              <form id="forgot-form">
+                <div class="field">
+                  <label>Email</label>
+                  <input name="email" type="email" placeholder="user@music.com" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Send Reset Token</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tab: Reset Password -->
+          <div class="tab-content" id="tab-reset">
+            <div class="card">
+              <h3>Reset Password</h3>
+              <p class="hint">Paste the <code>resetToken</code> UUID from the Forgot Password response.</p>
+              <form id="reset-form">
+                <div class="field">
+                  <label>Reset Token (UUID)</label>
+                  <input name="token" placeholder="550e8400-e29b-41d4-..." required />
+                </div>
+                <div class="field">
+                  <label>New Password <small>(min 8 chars)</small></label>
+                  <input name="newPassword" type="password" placeholder="••••••••" minlength="8" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Reset Password</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tab: Refresh Token -->
+          <div class="tab-content" id="tab-refresh">
+            <div class="card">
+              <h3>Refresh Token</h3>
+              <p class="hint">
+                Exchanges the stored refresh token for a brand-new access + refresh token pair
+                (<strong>rotation</strong> — the old refresh token is invalidated immediately).
+                User ID and refresh token are auto-filled from the current session.
+              </p>
+              <form id="refresh-form">
+                <div class="field">
+                  <label>User ID</label>
+                  <input name="userId" id="refresh-userid-input" placeholder="Auto-filled after login" required />
+                </div>
+                <div class="field">
+                  <label>Refresh Token</label>
+                  <input name="refreshToken" id="refresh-token-input" placeholder="Auto-filled after login" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Refresh Tokens</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tab: Logout -->
+          <div class="tab-content" id="tab-logout">
+            <div class="card">
+              <h3>Logout</h3>
+              <p class="hint">
+                Clears the stored refresh token hash in the database. Future refresh attempts with the old token will fail.
+                The access token remains valid until it expires (15m) — this is an accepted trade-off for stateless JWTs.
+              </p>
+              <button id="logout-btn" class="btn btn--danger">Logout</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ ARTISTS SECTION ════════════════════════════════════════════ -->
+        <section id="section-artists" class="section">
+          <div class="section-header">
+            <h2>Artists</h2>
+            <p class="section-desc">
+              <span class="badge badge--info">GET</span> available to all users &nbsp;·&nbsp;
+              <span class="badge badge--warning">POST / PATCH / DELETE</span> admin only
+            </p>
+          </div>
+
+          <div class="two-col">
+            <div class="card">
+              <h3>Create Artist <span class="admin-badge">Admin only</span></h3>
+              <form id="artist-form">
+                <div class="field">
+                  <label>Name</label>
+                  <input name="name" placeholder="Artist name" required />
+                </div>
+                <div class="field">
+                  <label>Genre</label>
+                  <select name="genre" required>
+                    <option value="rock">Rock</option>
+                    <option value="pop">Pop</option>
+                    <option value="jazz">Jazz</option>
+                    <option value="hip-hop">Hip-Hop</option>
+                    <option value="classical">Classical</option>
+                    <option value="electronic">Electronic</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Country</label>
+                  <input name="country" placeholder="e.g. UK" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Create Artist</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Browse Artists</h3>
+              <div class="field">
+                <label>Search by name</label>
+                <input id="artist-search" placeholder="e.g. The Beatles" />
+              </div>
+              <div class="btn-row">
+                <button id="load-artists" class="btn btn--secondary">Load All Artists</button>
+              </div>
+              <div id="artist-list" class="item-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ SONGS SECTION ══════════════════════════════════════════════ -->
+        <section id="section-songs" class="section">
+          <div class="section-header">
+            <h2>Songs</h2>
+            <p class="section-desc">
+              <span class="badge badge--info">GET</span> all users &nbsp;·&nbsp;
+              <span class="badge badge--warning">POST / PATCH / DELETE</span> admin only
+            </p>
+          </div>
+
+          <div class="two-col">
+            <div class="card">
+              <h3>Create Song <span class="admin-badge">Admin only</span></h3>
+              <form id="song-form">
+                <div class="field">
+                  <label>Title</label>
+                  <input name="title" placeholder="Song title" required />
+                </div>
+                <div class="field">
+                  <label>Duration (seconds)</label>
+                  <input name="durationSeconds" type="number" min="1" max="1800" placeholder="240" required />
+                </div>
+                <div class="field">
+                  <label>Artist UUID</label>
+                  <input name="artistId" placeholder="Paste artist UUID" required />
+                </div>
+                <label class="checkbox-row">
+                  <input name="isExplicit" type="checkbox" />
+                  Explicit content
+                </label>
+                <button type="submit" class="btn btn--primary">Create Song</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Browse Songs</h3>
+              <div class="btn-row">
+                <button id="load-songs" class="btn btn--secondary">Load All Songs</button>
+              </div>
+              <div id="song-list" class="item-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ ALBUMS SECTION ════════════════════════════════════════════ -->
+        <section id="section-albums" class="section">
+          <div class="section-header">
+            <h2>Albums</h2>
+            <p class="section-desc">
+              <span class="badge badge--info">GET</span> all users &nbsp;·&nbsp;
+              <span class="badge badge--warning">POST / PATCH / DELETE</span> admin only
+            </p>
+          </div>
+
+          <div class="two-col">
+            <div class="card">
+              <h3>Create Album <span class="admin-badge">Admin only</span></h3>
+              <form id="album-form">
+                <div class="field">
+                  <label>Album Title</label>
+                  <input name="title" placeholder="Album title" required />
+                </div>
+                <div class="field">
+                  <label>Release Date</label>
+                  <input name="releaseDate" type="date" />
+                </div>
+                <div class="field">
+                  <label>Artist UUID</label>
+                  <input name="artistId" placeholder="Paste artist UUID" required />
+                </div>
+                <div class="field">
+                  <label>Edition Format</label>
+                  <select name="editionFormat">
+                    <option value="CD">CD</option>
+                    <option value="Vinyl">Vinyl</option>
+                    <option value="Digital">Digital</option>
+                    <option value="Cassette">Cassette</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Copies</label>
+                  <input name="editionCopies" type="number" min="1" value="1000" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Create Album</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Browse Albums</h3>
+              <div class="btn-row">
+                <button id="load-albums" class="btn btn--secondary">Load All Albums</button>
+              </div>
+              <div id="album-list" class="item-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ PLAYLISTS SECTION ═════════════════════════════════════════ -->
+        <section id="section-playlists" class="section">
+          <div class="section-header">
+            <h2>Playlists</h2>
+            <p class="section-desc">
+              Any authenticated user can create playlists. You can only <strong>edit or delete your own</strong> playlists.
+              Admins can edit/delete any playlist.
+            </p>
+          </div>
+
+          <div class="two-col">
+            <div class="card">
+              <h3>Create Playlist</h3>
+              <p class="hint">You become the owner automatically. Only you (or an admin) can edit or delete it.</p>
+              <form id="playlist-form">
+                <div class="field">
+                  <label>Title</label>
+                  <input name="title" placeholder="My Roadtrip Mix" required />
+                </div>
+                <div class="field">
+                  <label>Author (display name)</label>
+                  <input name="author" placeholder="Your display name" required />
+                </div>
+                <button type="submit" class="btn btn--primary">Create Playlist</button>
+              </form>
+
+              <div class="divider"></div>
+
+              <h3>Add Songs to Playlist</h3>
+              <p class="hint">Replaces ALL songs in the playlist (PUT semantics). Only owner or admin.</p>
+              <form id="playlist-songs-form">
+                <div class="field">
+                  <label>Playlist UUID</label>
+                  <input name="playlistId" placeholder="Paste playlist UUID" required />
+                </div>
+                <div class="field">
+                  <label>Song UUIDs <small>(one per line)</small></label>
+                  <textarea name="songIds" rows="4" placeholder="uuid-1&#10;uuid-2&#10;uuid-3"></textarea>
+                </div>
+                <button type="submit" class="btn btn--primary">Set Songs</button>
+              </form>
+
+              <div class="divider"></div>
+
+              <h3>Delete Playlist</h3>
+              <p class="hint">Only owner or admin. Soft-deletes the record.</p>
+              <form id="playlist-delete-form">
+                <div class="field">
+                  <label>Playlist UUID</label>
+                  <input name="playlistId" placeholder="Paste playlist UUID" required />
+                </div>
+                <button type="submit" class="btn btn--danger">Delete Playlist</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Browse Playlists</h3>
+              <div class="btn-row">
+                <button id="load-playlists" class="btn btn--secondary">Load All Playlists</button>
+              </div>
+              <div id="playlist-list" class="item-list"></div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ─── OUTPUT PANEL ───────────────────────────────────────────────── -->
+      <aside class="output-panel">
+        <div class="output-panel__header">
+          <span>Response</span>
+          <button id="clear-output" class="btn btn--ghost btn--sm">Clear</button>
         </div>
-        <pre id="output">Click "Load Artists" or "Load Songs"</pre>
-      </section>
-    </main>
+        <div id="output-status" class="output-status"></div>
+        <pre id="output">Waiting for requests...</pre>
+      </aside>
+    </div>
 
     <script src="/app.js"></script>
   </body>
-  </html>
+</html>

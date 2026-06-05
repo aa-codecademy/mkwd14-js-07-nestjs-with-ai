@@ -46,9 +46,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../common/types/user-role';
 
 @ApiTags('Artist')
 @ApiBearerAuth('access-token')
+// @UseGuards(JwtAuthGuard)
 @Controller('artist')
 export class ArtistController {
   constructor(private readonly artistsService: ArtistService) {}
@@ -62,7 +65,8 @@ export class ArtistController {
     description: 'Artists are successfully returned',
     type: Artist,
   })
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Get()
   getArtists(@Query() query: ArtistSearchQueryDto): Promise<Artist[]> {
     return this.artistsService.getArtists(query);
@@ -79,6 +83,7 @@ export class ArtistController {
   @ApiNotFoundResponse({
     description: `Artist with ID doesn't exist`,
   })
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Get(':id')
   getArtistById(@Param('id', ParseUUIDPipe) id: string): Promise<Artist> {
     return this.artistsService.getArtistById(id);
@@ -91,6 +96,7 @@ export class ArtistController {
     description: 'Artist has been successfully created',
     type: Artist,
   })
+  @Roles(UserRole.ADMIN)
   @Post()
   createArtist(@Body() body: ArtistCreateDto): Promise<Artist> {
     return this.artistsService.createArtist(body);
@@ -106,6 +112,7 @@ export class ArtistController {
   @ApiNotFoundResponse({
     description: `Artist doesn't exist`,
   })
+  @Roles(UserRole.ADMIN)
   @Patch(':id')
   partiallyUpdateArtist(
     @Param('id', ParseUUIDPipe) id: string,
@@ -124,6 +131,7 @@ export class ArtistController {
   @ApiNoContentResponse({
     description: 'Artist has been successfully deleted',
   })
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteArtist(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

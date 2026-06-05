@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -46,6 +47,34 @@ export class UserService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  async getUserByRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<User> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.refreshTokenHash')
+      .addSelect('user.refreshTokenExpiry')
+      .where('user.id = :userId', { userId })
+      .getOne();
+
+    if (!user || !user.refreshTokenHash || !user.refreshTokenExpiry) {
+      throw new NotFoundException(`User with ID: ${userId} not found.`);
+    }
+
+    if (user.refreshTokenExpiry < new Date()) {
+      throw new ForbiddenException('Token expiry date has expired.');
+    }
+
+    const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+
+    if (!isValid) {
+      throw new ForbiddenException('Refresh token is not valid');
     }
 
     return user;
@@ -98,6 +127,23 @@ export class UserService {
     const createdUser = await this.userRepository.save(user);
 
     return createdUser;
+  }
+
+  async saveRefreshToken(
+    userId: string,
+    refreshToken: string,
+    expiry: Date,
+  ): Promise<void> {
+    const hashedToken = await bcrypt.hash(refreshToken, 10);
+    console.log(
+      '🚀 ~ UserService ~ saveRefreshToken ~ hashedToken:',
+      hashedToken,
+    );
+
+    await this.userRepository.update(userId, {
+      refreshTokenHash: hashedToken,
+      refreshTokenExpiry: expiry,
+    });
   }
 
   /**

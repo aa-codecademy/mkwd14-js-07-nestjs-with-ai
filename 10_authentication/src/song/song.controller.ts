@@ -23,6 +23,7 @@ import { SongCreateDto } from './dto/song-create.dto';
 import { SongUpdateDto } from './dto/song-update.dto';
 import { Song } from './song.entity';
 import {
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -31,6 +32,7 @@ import {
 } from '@nestjs/swagger';
 
 @ApiTags('Song')
+@ApiBearerAuth('access-token')
 @Controller('song')
 export class SongController {
   constructor(private readonly songService: SongService) {}
