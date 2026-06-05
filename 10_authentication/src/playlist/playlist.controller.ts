@@ -1,9 +1,24 @@
 /**
- * Playlist HTTP API.
+ * PlaylistController — demonstrates all three layers of access control:
  *
- * Same conventions as the other controllers: thin handlers, DTOs on
- * `@Body()`, `ParseUUIDPipe` on `:id` params, global `ValidationPipe`
- * does the rest.
+ *   Layer 1 — Authentication (global JwtAuthGuard via APP_GUARD in AppModule)
+ *     All endpoints here require a valid JWT. No @UseGuards(JwtAuthGuard) needed
+ *     because it runs globally. A request without a token gets 401 before this
+ *     controller is touched.
+ *
+ *   Layer 2 — Role authorization (@Roles + global RolesGuard)
+ *     @Roles(UserRole.USER, UserRole.ADMIN) → any authenticated user can call it.
+ *     @Roles(UserRole.ADMIN) → only admins. Regular users get 403 Forbidden.
+ *     Handled by RolesGuard (also registered globally in AppModule).
+ *
+ *   Layer 3 — Resource ownership (@UseGuards(PlaylistOwnershipGuard))
+ *     Applied PER ENDPOINT with @UseGuards(). Checks that the authenticated user
+ *     is the owner of the specific playlist being modified (or is an admin).
+ *     Without this, any logged-in user could edit any other user's playlist.
+ *
+ * KEY DECORATOR: @CurrentUser()
+ *   Injects req.user (the authenticated AuthUser) directly as a parameter.
+ *   Used on create() so the service knows which user owns the new playlist.
  *
  * The endpoint that earns its own teaching moment is `PUT /:id/songs`.
  * See the comment on `addSongs` below for why it's a `PUT` instead of a

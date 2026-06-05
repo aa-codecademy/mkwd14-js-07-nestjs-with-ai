@@ -91,6 +91,21 @@ export class AuthController {
     return this.authService.login(credentials);
   }
 
+  /**
+   * POST /api/auth/refresh
+   *
+   * Exchanges a valid refresh token for a new access + refresh token pair.
+   * The client must send both the userId and the refresh token received from
+   * the most recent login or refresh call.
+   *
+   * This implements "refresh token rotation":
+   *   - The old refresh token is invalidated immediately after use.
+   *   - The response contains BOTH a new access token AND a new refresh token.
+   *   - The client must store the new refresh token for the next refresh call.
+   *
+   * HTTP 401 Unauthorized is returned when the refresh token is expired,
+   * tampered with, or does not match the stored hash for the given userId.
+   */
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiOkResponse({
     description: 'Access token refreshed successfully. Token pair returned.',

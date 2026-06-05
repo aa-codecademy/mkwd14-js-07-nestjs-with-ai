@@ -144,6 +144,36 @@ export class AuthService {
     }
   }
 
+  /**
+   * refresh() — exchanges a valid refresh token for a new access + refresh token pair.
+   *
+   * REFRESH TOKEN ROTATION FLOW:
+   *   1. UserService.getUserByRefreshToken(userId, refreshToken)
+   *      → Loads the user from DB using a QueryBuilder that opts-in the
+   *        hidden refreshTokenHash and refreshTokenExpiry columns.
+   *      → Checks refreshTokenExpiry < now (expired? throw)
+   *      → bcrypt.compare(incomingToken, storedHash) (tampered? throw)
+   *
+   *   2. Issue a brand-new access token (short-lived, signed with JWT_SECRET).
+   *
+   *   3. Issue a brand-new refresh token (long-lived, signed with JWT_REFRESH_SECRET).
+   *      Using a DIFFERENT secret for refresh tokens means the two token types
+   *      cannot be substituted for each other — an access token cannot be used
+   *      to refresh, and a refresh token cannot be used to access protected routes.
+   *
+   *   4. Save the NEW refresh token hash + new expiry in the database.
+   *      The old refresh token hash is overwritten → the old token is now invalid.
+   *      This is "refresh token rotation": each use of a refresh token produces
+   *      a fresh one, and the old one can never be reused.
+   *
+   *   5. Return { user, accessToken, refreshToken } so the client can replace
+   *      both stored tokens immediately.
+   *
+   * WHY CATCH EVERYTHING AND THROW UnauthorizedException?
+   * Same reason as login: a generic "Invalid or expired token" message prevents
+   * an attacker from distinguishing "user doesn't exist" from "wrong token" from
+   * "token expired". All failure modes look identical from the outside.
+   */
   async refresh(body: RefreshDto) {
     try {
       const user = await this.userService.getUserByRefreshToken(
@@ -153,30 +183,29 @@ export class AuthService {
 
       const payload: JwtPayload = { sub: user.id, username: user.email };
 
+      // New short-lived access token — clients use this for API requests.
       const accessToken = await this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('JWT_SECRET'),
         expiresIn: this.configService.get('JWT_EXPIRES_IN'),
       });
 
+      // New long-lived refresh token — client stores this for the next refresh.
+      // Signed with a DIFFERENT secret than the access token.
       const refreshToken = await this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
       });
 
-      // const days = parseInt(
-      //   this.configService.get('JWT_REFRESH_EXPIRES_IN')!,
-      //   10,
-      // );
-
-      // const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-
-      // For testing purposes
+      // For testing purposes (production would parse JWT_REFRESH_EXPIRES_IN as days)
       const minutes = 2;
       const expiry = new Date(Date.now() + minutes * 60 * 1000);
+
+      // Overwrite the stored hash — old refresh token is now invalid (rotation).
       await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
 
       return { user, accessToken, refreshToken };
     } catch (error: unknown) {
+      // Log the real error for debugging, never forward it to the caller.
       this.logger.error('AuthService: Refresh: ', JSON.stringify(error));
 
       throw new UnauthorizedException('Invalid or expired token');

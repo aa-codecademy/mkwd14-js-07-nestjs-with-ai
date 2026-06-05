@@ -1,12 +1,31 @@
 /**
- * Root composition module.
+ * AppModule — the root composition module.
  *
- * In Nest, `AppModule` should only orchestrate feature modules and global cross-cutting modules.
- * Keep business logic in feature modules (`ArtistModule`, `SongModule`, `AlbumModule`).
+ * In NestJS, AppModule should only orchestrate feature modules and register
+ * global cross-cutting concerns. Business logic lives in feature modules.
  *
- * `LoggerModule.forRoot(...)` is a Dynamic Module pattern:
- * - receives config once at startup
- * - provides configured services app-wide
+ * GLOBAL GUARDS (the key auth wiring in this file):
+ *
+ *   APP_GUARD is a special NestJS injection token. Every provider registered
+ *   with { provide: APP_GUARD, useClass: SomeGuard } is applied to ALL routes
+ *   in the entire application, automatically — no @UseGuards() needed anywhere.
+ *
+ *   Order matters: guards run in the order they are listed here.
+ *     1. JwtAuthGuard runs FIRST — validates the JWT and populates req.user.
+ *        Routes decorated with @Public() are skipped (returns true immediately).
+ *     2. RolesGuard runs SECOND — checks req.user.role against @Roles(...).
+ *        It depends on req.user being set by JwtAuthGuard, so order is critical.
+ *
+ *   This "secure by default" pattern means:
+ *     - Adding a new controller → it is automatically protected by JWT auth.
+ *     - You must explicitly opt out with @Public() for unauthenticated routes.
+ *     - You must explicitly opt in role restrictions with @Roles() per endpoint.
+ *
+ *   The alternative (adding @UseGuards(JwtAuthGuard) to every controller) is
+ *   error-prone — a developer can forget it and accidentally expose a route.
+ *
+ * LoggerModule.forRoot(...) is the Dynamic Module pattern:
+ *   receives configuration once at startup and provides configured services globally.
  */
 import { Module } from '@nestjs/common';
 import { AlbumModule } from './album/album.module';
@@ -35,7 +54,9 @@ import { RolesGuard } from './auth/guards/roles.guard';
   ],
   controllers: [AppController],
   providers: [
+    // Guard #1 — authentication: is there a valid JWT? (runs first)
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Guard #2 — authorization: does the user have the required role? (runs second)
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

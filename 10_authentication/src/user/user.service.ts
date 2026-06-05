@@ -52,10 +52,31 @@ export class UserService {
     return user;
   }
 
+  /**
+   * getUserByRefreshToken() — validates an incoming refresh token against the
+   * stored hash in the database. Used exclusively by AuthService.refresh().
+   *
+   * WHY createQueryBuilder INSTEAD OF findOneBy?
+   * refreshTokenHash and refreshTokenExpiry have { select: false } on the entity,
+   * so standard find() methods exclude them. We use .addSelect() to opt them
+   * back in for this specific query — the same pattern as verifyPassword().
+   *
+   * THREE CHECKS RUN IN ORDER:
+   *   1. User exists and has a stored refresh token hash → if not, token invalid.
+   *   2. refreshTokenExpiry hasn't passed → if it has, token expired.
+   *   3. bcrypt.compare(incomingToken, storedHash) → token hasn't been tampered.
+   *
+   * WHY bcrypt FOR THE REFRESH TOKEN?
+   * If an attacker reads the database (SQL injection, backup leak), they should
+   * not be able to extract valid refresh tokens. Storing the hash instead of
+   * the raw token prevents that. bcrypt.compare extracts the salt from the
+   * stored hash and re-runs the algorithm — same pattern as password verification.
+   */
   async getUserByRefreshToken(
     userId: string,
     refreshToken: string,
   ): Promise<User> {
+    // Opt-in the two hidden columns needed for the refresh token check.
     const user = await this.userRepository
       .createQueryBuilder('user')
       .addSelect('user.refreshTokenHash')
@@ -67,6 +88,7 @@ export class UserService {
       throw new NotFoundException(`User with ID: ${userId} not found.`);
     }
 
+    // Check expiry BEFORE bcrypt.compare to fail fast without the slow hash computation.
     if (user.refreshTokenExpiry < new Date()) {
       throw new ForbiddenException('Token expiry date has expired.');
     }
@@ -129,16 +151,25 @@ export class UserService {
     return createdUser;
   }
 
+  /**
+   * saveRefreshToken() — hashes and persists a new refresh token for a user.
+   *
+   * Called after both successful login AND successful token refresh.
+   * On refresh, this OVERWRITES the previous hash, effectively invalidating
+   * the old refresh token (token rotation — each refresh produces a new token
+   * and the old one can never be reused).
+   *
+   * WHY HASH THE REFRESH TOKEN?
+   * If an attacker dumps the database, they should not be able to steal active
+   * sessions. Storing the bcrypt hash means the raw token is never in the DB.
+   */
   async saveRefreshToken(
     userId: string,
     refreshToken: string,
     expiry: Date,
   ): Promise<void> {
+    // Hash the token before storing — same bcrypt pattern as password storage.
     const hashedToken = await bcrypt.hash(refreshToken, 10);
-    console.log(
-      '🚀 ~ UserService ~ saveRefreshToken ~ hashedToken:',
-      hashedToken,
-    );
 
     await this.userRepository.update(userId, {
       refreshTokenHash: hashedToken,
