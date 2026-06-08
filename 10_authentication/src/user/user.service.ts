@@ -177,6 +177,16 @@ export class UserService {
     });
   }
 
+  /**
+   * clearRefreshToken() — nulls out the stored refresh token hash and expiry.
+   *
+   * Called on logout. After this, any existing refresh token the client holds
+   * is permanently useless — getUserByRefreshToken will find no stored hash and
+   * throw, preventing any further silent refreshes or session restoration.
+   *
+   * This is the server-side half of logout. The client must also discard its
+   * own copy of the tokens (handled in app.js clearSession()).
+   */
   async clearRefreshToken(userId: string): Promise<void> {
     await this.userRepository.update(userId, {
       refreshTokenHash: null,
@@ -184,6 +194,20 @@ export class UserService {
     });
   }
 
+  /**
+   * storePasswordResetCode() — hashes and saves a one-time password reset code.
+   *
+   * The reset code (a UUID) is hashed with bcrypt before storage for the same
+   * reason passwords are hashed: if the database is leaked, an attacker cannot
+   * extract valid reset codes and take over accounts.
+   *
+   * The expiry timestamp is stored alongside the hash so getUserByPasswordResetCode
+   * can filter out expired codes without needing to compare hashes for every row.
+   *
+   * In production the raw resetCode would be emailed to the user — they never
+   * see it in the API response. In this demo it is returned in the response so
+   * the flow can be tested without a mail server.
+   */
   async storePasswordResetCode(
     userId: string,
     resetPasswordCode: string,
@@ -197,7 +221,25 @@ export class UserService {
     });
   }
 
+  /**
+   * getUserByPasswordResetCode() — finds the user that owns a given reset code.
+   *
+   * WHY NOT QUERY BY CODE DIRECTLY?
+   * The code is stored as a bcrypt hash (not plaintext), so we cannot run
+   * WHERE resetPasswordHash = bcrypt(code) — bcrypt uses a random salt per hash
+   * making it non-deterministic. We must instead load all users with a
+   * non-expired hash and run bcrypt.compare() against each one.
+   *
+   * For security this is acceptable: reset codes are short-lived (1 minute in
+   * dev, 15 minutes in production) and users with non-expired codes will be a
+   * tiny set in practice.
+   *
+   * Returns null if no matching, non-expired reset code is found — the caller
+   * (AuthService.resetPassword) treats null as an invalid request.
+   */
   async getUserByPasswordResetCode(code: string): Promise<User | null> {
+    // Load only users with a non-expired, non-null resetPasswordHash.
+    // addSelect opts in the hidden column for comparison — same pattern as verifyPassword.
     const candidates = await this.userRepository
       .createQueryBuilder('user')
       .addSelect('user.resetPasswordHash')
@@ -216,11 +258,25 @@ export class UserService {
     return null;
   }
 
+  /**
+   * resetPassword() — replaces the user's password hash and invalidates the reset code.
+   *
+   * After a successful reset:
+   *   1. A new bcrypt hash of the new password replaces the old one.
+   *   2. resetPasswordHash and resetPasswordExpiry are cleared — the one-time
+   *      code cannot be reused for a second reset (replay attack prevention).
+   *
+   * The user must log in again with the new password after this call. Any
+   * active sessions (access tokens, refresh tokens) are NOT invalidated here —
+   * in a stricter implementation you would also call clearRefreshToken() to
+   * force re-authentication on all devices.
+   */
   async resetPassword(userId: string, newPassword: string): Promise<void> {
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await this.userRepository.update(userId, {
       passwordHash,
+      // Clear the one-time reset code so it cannot be replayed.
       resetPasswordHash: null,
       resetPasswordExpiry: null,
     });

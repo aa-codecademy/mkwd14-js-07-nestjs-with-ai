@@ -62,15 +62,25 @@ export class User {
   @Column({ select: false })
   passwordHash!: string;
 
+  // bcrypt hash of the one-time password-reset UUID. Null when no reset is pending.
+  // { select: false } — excluded from all default queries, same rationale as passwordHash.
   @Column({ type: 'text', nullable: true, select: false })
   resetPasswordHash!: string | null;
 
+  // When the password-reset code expires. Checked BEFORE bcrypt.compare to fail fast.
+  // { select: false } — never exposed in API responses.
   @Column({ type: 'timestamptz', nullable: true, select: false })
   resetPasswordExpiry!: Date | null;
 
+  // bcrypt hash of the most recent refresh token. Null after logout or before first login.
+  // Overwritten on every refresh (rotation) so the old token can never be reused.
+  // { select: false } — excluded from all default queries to prevent accidental leakage.
   @Column({ type: 'text', nullable: true, select: false })
   refreshTokenHash!: string | null;
 
+  // Expiry timestamp for the stored refresh token. Checked before bcrypt.compare
+  // so expired tokens are rejected without running the slow hash operation.
+  // { select: false } — never included in normal SELECT results.
   @Column({ type: 'timestamptz', nullable: true, select: false })
   refreshTokenExpiry!: Date | null;
 

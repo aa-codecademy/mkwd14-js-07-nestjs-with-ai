@@ -14,6 +14,11 @@ You will learn:
 - How **Role-Based Access Control (RBAC)** restricts endpoints by user role
 - How to protect individual resources with **ownership guards**
 - Common security mistakes and why the code avoids them
+- Where to store tokens in the browser and why the storage location matters
+- How to implement **automatic silent token refresh** on the client side
+- How to prevent duplicate refresh requests when multiple calls fail concurrently
+- How to persist sessions across page reloads using `localStorage`
+- How to client-side decode a JWT payload for display (without trusting it for security)
 
 > The TypeORM, relations, pagination, and filtering knowledge from the previous lesson is still in this project. This README focuses purely on the authentication and authorization layers.
 
@@ -228,6 +233,122 @@ Every time the client uses a refresh token, it receives a brand-new refresh toke
 Refresh tokens are stored as **bcrypt hashes** in the database (same principle as passwords). If the database is compromised, raw refresh tokens cannot be extracted.
 
 See `src/auth/dto/refresh.dto.ts`, `src/auth/auth.service.ts`, and `src/user/user.service.ts` for the implementation.
+
+---
+
+## 5a. Client-side token management
+
+The server handles issuing and validating tokens. The client (browser) is responsible for storing them securely, restoring sessions after a page reload, and refreshing them automatically when they expire. This section explains every decision in `public/app.js`.
+
+### Where to store tokens
+
+Four options exist in a browser:
+
+| Storage               | Readable by JS  | Survives reload | Suitable for                         |
+|-----------------------|-----------------|-----------------|--------------------------------------|
+| **Memory (variable)** | Same page only  | No              | Access token (ideal)                 |
+| **`localStorage`**    | Any script      | Yes             | Refresh token (acceptable for demos) |
+| **`sessionStorage`**  | Same tab only   | No (tab close)  | Short-lived data                     |
+| **`httpOnly` cookie** | Server only     | Yes             | Refresh token (ideal in production)  |
+
+**Access token → memory.**  
+The access token lives in the `state` JavaScript object. It is never written to disk. An attacker who can inject a `<script>` tag (XSS) can read `state.accessToken` — but only while the page is open, and only until the token expires (2 minutes in this demo). Nothing survives a page reload.
+
+**Refresh token → `localStorage`.**  
+`localStorage` persists across page reloads, so the user does not have to log in on every visit. The tradeoff: any JavaScript on the page can call `localStorage.getItem()`. A malicious script from a compromised npm package or a browser extension could steal it.
+
+**The ideal production setup: `httpOnly` cookie.**  
+If the server sends the refresh token as an `httpOnly` cookie (`Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=Strict`), JavaScript cannot read it at all — not even your own code. The browser attaches it automatically on requests to the same origin. This completely eliminates the XSS theft vector for the refresh token. Implementing this requires a backend change; this demo returns tokens in the JSON body for simplicity.
+
+### Persisting the session (`persistSession` / `restoreSession`)
+
+On every login or refresh, `persistSession()` writes the current session to `localStorage`:
+
+```javascript
+localStorage.setItem(STORAGE_KEY, JSON.stringify({
+  accessToken: state.accessToken,
+  refreshToken: state.refreshToken,
+  userId: state.userId,
+  userEmail: state.userEmail,
+  userRole: state.userRole,
+}));
+```
+
+On page load, `restoreSession()` reads it back:
+
+```javascript
+const { accessToken, refreshToken, userId, ... } = JSON.parse(raw);
+state.accessToken = accessToken ?? null;
+state.refreshToken = refreshToken;
+// ...
+```
+
+If the stored access token is still valid, the first API call succeeds immediately. If it has already expired, the API call gets a `401` and the auto-refresh kicks in transparently.
+
+On logout or session failure, `clearSession()` calls `localStorage.removeItem(STORAGE_KEY)` so no stale data lingers.
+
+### Automatic silent refresh (the 401 retry pattern)
+
+The `api()` helper intercepts every `401 Unauthorized` response. Instead of showing an error, it:
+
+1. Calls `silentRefresh()` — sends `POST /api/auth/refresh` in the background.
+2. Updates `state.accessToken` and `state.refreshToken` with the new pair.
+3. Retries the original request **once** with the new access token.
+4. If the refresh itself fails (e.g. the refresh token is also expired or revoked), calls `clearSession()` and propagates a `401` error to the caller.
+
+```javascript
+if (res.status === 401 && !_retry) {
+  try {
+    await silentRefresh();
+    return api(path, options, true);   // retry once
+  } catch {
+    clearSession();
+    throw new ApiError(401, 'Session expired — please log in again.');
+  }
+}
+```
+
+The `_retry` flag is critical: it prevents an infinite loop if the retry also returns `401`. Without it, `api()` would keep calling itself forever.
+
+### Deduplicating concurrent refresh requests
+
+Imagine the page fires three API calls simultaneously (artists, songs, albums). If the access token is expired, all three get `401` at the same time and all three try to call `silentRefresh()`. Only the first refresh call will succeed — the server uses **rotation**, so the second call receives the already-replaced refresh token and fails.
+
+The fix is a shared in-flight Promise:
+
+```javascript
+let _refreshInFlight = null;
+
+async function silentRefresh() {
+  if (_refreshInFlight) return _refreshInFlight;   // join the in-flight request
+
+  _refreshInFlight = (async () => {
+    // ... do the actual refresh ...
+  })().finally(() => { _refreshInFlight = null; }); // clear when done
+
+  return _refreshInFlight;
+}
+```
+
+The first caller creates the Promise and stores it in `_refreshInFlight`. Every subsequent concurrent caller receives the **same Promise** and waits for it. Only one HTTP request is ever sent. When it resolves, all callers proceed with the new token and retry their original requests.
+
+### Client-side JWT decoding (display only)
+
+A JWT payload is base64-encoded, not encrypted. Anyone with the token string can read its claims without the secret. The client decodes the payload to display the token expiry countdown:
+
+```javascript
+function decodeJwt(token) {
+  const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  return JSON.parse(atob(b64));
+}
+
+const payload = decodeJwt(state.accessToken);
+const secsLeft = payload.exp - Math.floor(Date.now() / 1000);
+```
+
+`payload.exp` is a Unix timestamp in seconds. Subtracting the current time gives the seconds until expiry.
+
+**This is used for display only.** Never use a client-decoded JWT payload for access control decisions. The server verifies the signature and expiry on every request — the client cannot forge or extend a token.
 
 ---
 
@@ -458,6 +579,7 @@ update(...) { ... }
 | `src/user/user.service.ts`                     | bcrypt hashing, password verify, refresh token store/validate           |
 | `src/user/user.module.ts`                      | Registers User entity and exports UserService                           |
 | `src/common/types/user-role.ts`                | UserRole enum (USER / ADMIN) used by entity, guards, and decorators     |
+| `public/app.js`                                | Browser client: token storage, silent refresh, session restore, UI      |
 
 ---
 
@@ -667,6 +789,16 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 7. **Add a new admin-only endpoint.** Add `DELETE /api/artist/:id` and protect it with `@Roles(UserRole.ADMIN)`. Verify that a regular USER gets 403 and an ADMIN can delete.
 
 8. **Understand refresh token rotation.** Log in, save the refresh token. Use it to refresh. Now try to use the **original** refresh token again. What happens? Why? This is the security property that rotation provides.
+
+9. **Observe auto-refresh in DevTools.** Log in, open the **Network** tab in DevTools. Wait for the access token to expire (2 minutes with the current config — watch the "Token Expiry" countdown in the UI). Make any API call. Watch the Network tab — you should see `POST /api/auth/refresh` fire automatically before the original request is retried. This is `silentRefresh()` in action.
+
+10. **See session persistence.** Log in, then hard-refresh the browser page (`Ctrl+Shift+R` / `Cmd+Shift+R`). Notice you are still recognised (the topbar shows your email and role). Open DevTools → **Application** → **Local Storage** → `localhost`. Find the `nestjs_auth_session` key. What data is stored? What is absent from it in the memory-only variant?
+
+11. **Simulate two concurrent 401s.** Temporarily add `console.log('refresh started')` inside `silentRefresh()` in `public/app.js`. Log in, wait for the token to expire, then click **Load All Artists** and **Load All Songs** at the same time. How many `'refresh started'` lines appear in the console? Why only one, even though two requests both failed with 401?
+
+12. **Decode your JWT manually.** Log in, copy the full `accessToken` from the Response panel. Go to [jwt.io](https://jwt.io) and paste it into the Encoded box. What fields appear in the Payload section? Now try editing the `exp` value in the decoded panel — does the signature still verify? What does this tell you about tampering with JWTs?
+
+13. **Compare storage locations.** Open DevTools → **Application** → **Local Storage** and find the `nestjs_auth_session` entry. Copy the `refreshToken` value. Now log out (which calls `localStorage.removeItem`). Confirm the key is gone. What would happen if a malicious script ran `localStorage.getItem('nestjs_auth_session')` before you logged out? How would using an `httpOnly` cookie instead change that scenario?
 
 ---
 

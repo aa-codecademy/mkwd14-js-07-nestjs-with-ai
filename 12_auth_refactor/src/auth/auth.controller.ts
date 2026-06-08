@@ -128,6 +128,18 @@ export class AuthController {
     return this.authService.refresh(body);
   }
 
+  /**
+   * POST /api/auth/logout
+   *
+   * Revokes the user's refresh token in the database so it can no longer be
+   * used to obtain new access tokens. The access token remains technically
+   * valid until it expires (short window — 2 minutes in dev), which is an
+   * accepted trade-off for stateless JWTs.
+   *
+   * This endpoint IS protected (no @Public()) — you must send a valid access
+   * token to prove you are the account holder. @CurrentUser() injects the
+   * validated user from req.user (populated by JwtAuthGuard).
+   */
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Logout user - revoke the refresh token' })
   @ApiOkResponse({ description: 'User has been successfully logged out' })
@@ -142,6 +154,22 @@ export class AuthController {
     return { message: 'Logged out successfully.' };
   }
 
+  /**
+   * POST /api/auth/forgot-password
+   *
+   * Generates a one-time password-reset code tied to the given email address.
+   *
+   * SECURITY NOTE — the response is always the same generic message, regardless
+   * of whether the email is registered. This prevents attackers from probing
+   * which emails have accounts (user enumeration).
+   *
+   * In production the reset code would be emailed. In this demo it is also
+   * returned in the response body (the server also logs it) so the flow can be
+   * tested without a mail server. Set up the /reset-password tab in the UI to
+   * use the returned code directly.
+   *
+   * @Public() — no access token required; users call this when they can't log in.
+   */
   @ApiOperation({ summary: 'Request a password reset code' })
   @ApiOkResponse({
     description: 'Reset code issued',
@@ -155,6 +183,24 @@ export class AuthController {
     return this.authService.forgotPassword(body.email);
   }
 
+  /**
+   * POST /api/auth/reset-password
+   *
+   * Completes the password-reset flow by verifying the one-time code and
+   * setting a new password.
+   *
+   * The client sends the reset code (received from /forgot-password or email)
+   * and the desired new password. The server:
+   *   1. Finds the user whose bcrypt-hashed code matches the submitted code.
+   *   2. Verifies the code has not expired.
+   *   3. Hashes the new password and saves it.
+   *   4. Clears the reset code so it cannot be reused.
+   *
+   * Returns 400 Bad Request for both "wrong code" and "expired code" — same
+   * message for both to avoid leaking information.
+   *
+   * @Public() — no access token required; the reset code is the credential here.
+   */
   @ApiOperation({ summary: 'Request password reset' })
   @ApiOkResponse({
     description: 'Password has been reset',
