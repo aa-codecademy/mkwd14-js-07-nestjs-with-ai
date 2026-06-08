@@ -4,7 +4,7 @@
 // Refresh token is persisted to localStorage so the session survives a page
 // reload. In production, prefer an httpOnly cookie for the refresh token.
 const state = {
-  accessToken: null,    // memory only — gone on page reload (intentional)
+  accessToken: null, // memory only — gone on page reload (intentional)
   refreshToken: null,
   userId: null,
   userEmail: null,
@@ -19,12 +19,16 @@ const STORAGE_KEY = 'nestjs_auth_session';
 // Access token is NOT saved — it stays in memory only.
 function persistSession() {
   if (state.refreshToken) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      refreshToken: state.refreshToken,
-      userId: state.userId,
-      userEmail: state.userEmail,
-      userRole: state.userRole,
-    }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        userId: state.userId,
+        userEmail: state.userEmail,
+        userRole: state.userRole,
+      }),
+    );
   } else {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -37,13 +41,17 @@ function restoreSession() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const { refreshToken, userId, userEmail, userRole } = JSON.parse(raw);
-    if (!refreshToken || !userId) { localStorage.removeItem(STORAGE_KEY); return; }
+    const { accessToken, refreshToken, userId, userEmail, userRole } =
+      JSON.parse(raw);
+    if (!refreshToken || !userId) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    state.accessToken = accessToken ?? null;
     state.refreshToken = refreshToken;
     state.userId = userId;
     state.userEmail = userEmail;
     state.userRole = userRole;
-    // No access token yet — silentRefresh() will fire on the first 401.
     updateSessionUI();
   } catch {
     localStorage.removeItem(STORAGE_KEY);
@@ -77,7 +85,10 @@ async function silentRefresh() {
     const res = await fetch(`${API}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: state.userId, refreshToken: state.refreshToken }),
+      body: JSON.stringify({
+        userId: state.userId,
+        refreshToken: state.refreshToken,
+      }),
     });
     if (!res.ok) throw new Error('Refresh failed');
     const data = await res.json();
@@ -87,7 +98,9 @@ async function silentRefresh() {
     updateSessionUI();
     toast('🔄 Access token silently refreshed.');
     return data;
-  })().finally(() => { _refreshInFlight = null; });
+  })().finally(() => {
+    _refreshInFlight = null;
+  });
 
   return _refreshInFlight;
 }
@@ -113,18 +126,22 @@ async function api(path, options = {}, _retry = false) {
       try {
         await silentRefresh();
         setLoading(false);
-        return api(path, options, true);   // retry once with the new access token
+        return api(path, options, true); // retry once with the new access token
       } catch {
         clearSession();
         throw new ApiError(401, 'Session expired — please log in again.');
       }
     }
 
-    const isJson = res.headers.get('content-type')?.includes('application/json');
-    const body = res.status === 204 ? null : isJson ? await res.json() : await res.text();
+    const isJson = res.headers
+      .get('content-type')
+      ?.includes('application/json');
+    const body =
+      res.status === 204 ? null : isJson ? await res.json() : await res.text();
 
     if (!res.ok) {
-      const msg = typeof body === 'object' ? body?.message || JSON.stringify(body) : body;
+      const msg =
+        typeof body === 'object' ? body?.message || JSON.stringify(body) : body;
       throw new ApiError(res.status, msg);
     }
 
@@ -161,7 +178,9 @@ function print(data, label) {
 
 function syntaxHighlight(json) {
   return json
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
       (match) => {
@@ -169,10 +188,12 @@ function syntaxHighlight(json) {
           if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
           return `<span class="json-str">${match}</span>`;
         }
-        if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
-        if (/null/.test(match)) return `<span class="json-null">${match}</span>`;
+        if (/true|false/.test(match))
+          return `<span class="json-bool">${match}</span>`;
+        if (/null/.test(match))
+          return `<span class="json-null">${match}</span>`;
         return `<span class="json-num">${match}</span>`;
-      }
+      },
     );
 }
 
@@ -185,7 +206,8 @@ function showStatus(code, type, message) {
 
 function setLoading(on) {
   const el = document.getElementById('output-status');
-  if (on) el.innerHTML = `<span class="status-dot status-dot--loading"></span> <em>Loading…</em>`;
+  if (on)
+    el.innerHTML = `<span class="status-dot status-dot--loading"></span> <em>Loading…</em>`;
 }
 
 document.getElementById('clear-output').addEventListener('click', () => {
@@ -214,7 +236,8 @@ function updateSessionUI() {
   const refreshTokenInput = document.getElementById('refresh-token-input');
 
   if (state.accessToken) {
-    const roleClass = state.userRole === 'admin' ? 'badge--admin' : 'badge--user';
+    const roleClass =
+      state.userRole === 'admin' ? 'badge--admin' : 'badge--user';
     statusEl.innerHTML = `
       <div class="topbar__user-info">
         <span class="topbar__email">${state.userEmail || 'Unknown'}</span>
@@ -229,9 +252,12 @@ function updateSessionUI() {
   }
 
   // Access token display
-  const shortToken = state.accessToken ? state.accessToken.slice(0, 24) + '…' : '—';
+  const shortToken = state.accessToken
+    ? state.accessToken.slice(0, 24) + '…'
+    : '—';
   tokenDisplay.textContent = shortToken;
-  tokenDisplay.className = 'token-panel__value' + (state.accessToken ? '' : ' empty');
+  tokenDisplay.className =
+    'token-panel__value' + (state.accessToken ? '' : ' empty');
 
   // Access token expiry countdown
   if (tokenExpiryDisplay) {
@@ -243,29 +269,37 @@ function updateSessionUI() {
         const secs = secsLeft % 60;
         const label = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
         tokenExpiryDisplay.textContent = `Expires in ${label}`;
-        tokenExpiryDisplay.className = 'token-panel__value' + (secsLeft < 30 ? ' expiring' : '');
+        tokenExpiryDisplay.className =
+          'token-panel__value' + (secsLeft < 30 ? ' expiring' : '');
       } else {
         tokenExpiryDisplay.textContent = 'Expired (auto-refresh pending)';
         tokenExpiryDisplay.className = 'token-panel__value expiring';
       }
     } else {
-      tokenExpiryDisplay.textContent = state.refreshToken ? 'No access token — will refresh on next request' : '—';
+      tokenExpiryDisplay.textContent = state.refreshToken
+        ? 'No access token — will refresh on next request'
+        : '—';
       tokenExpiryDisplay.className = 'token-panel__value empty';
     }
   }
 
   // Refresh token display
-  const shortRefresh = state.refreshToken ? state.refreshToken.slice(0, 20) + '…' : '—';
+  const shortRefresh = state.refreshToken
+    ? state.refreshToken.slice(0, 20) + '…'
+    : '—';
   refreshDisplay.textContent = shortRefresh;
-  refreshDisplay.className = 'token-panel__value' + (state.refreshToken ? '' : ' empty');
+  refreshDisplay.className =
+    'token-panel__value' + (state.refreshToken ? '' : ' empty');
 
   // Storage location labels
   if (storageDisplay) {
     if (state.accessToken && state.refreshToken) {
-      storageDisplay.textContent = 'Access: memory · Refresh: localStorage';
+      storageDisplay.textContent =
+        'Access: localStorage · Refresh: localStorage';
       storageDisplay.className = 'token-panel__value';
     } else if (state.refreshToken) {
-      storageDisplay.textContent = 'Refresh: localStorage (access token will be fetched automatically)';
+      storageDisplay.textContent =
+        'Refresh: localStorage (access token will be fetched automatically)';
       storageDisplay.className = 'token-panel__value';
     } else {
       storageDisplay.textContent = '—';
@@ -274,7 +308,8 @@ function updateSessionUI() {
   }
 
   useridDisplay.textContent = state.userId || '—';
-  useridDisplay.className = 'token-panel__value mono' + (state.userId ? '' : ' empty');
+  useridDisplay.className =
+    'token-panel__value mono' + (state.userId ? '' : ' empty');
 
   // Auto-fill refresh form
   if (refreshUseridInput) refreshUseridInput.value = state.userId || '';
@@ -297,7 +332,7 @@ function clearSession() {
   state.userId = null;
   state.userEmail = null;
   state.userRole = null;
-  persistSession();   // removes the localStorage entry
+  persistSession(); // removes the localStorage entry
   updateSessionUI();
 }
 
@@ -309,10 +344,16 @@ setInterval(() => {
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 document.querySelectorAll('.nav-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
-    document.querySelectorAll('.section').forEach((s) => s.classList.remove('active'));
+    document
+      .querySelectorAll('.nav-btn')
+      .forEach((b) => b.classList.remove('active'));
+    document
+      .querySelectorAll('.section')
+      .forEach((s) => s.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById(`section-${btn.dataset.section}`).classList.add('active');
+    document
+      .getElementById(`section-${btn.dataset.section}`)
+      .classList.add('active');
   });
 });
 
@@ -320,29 +361,38 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     const parent = tab.closest('.section') || document;
-    parent.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-    parent.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
+    parent
+      .querySelectorAll('.tab')
+      .forEach((t) => t.classList.remove('active'));
+    parent
+      .querySelectorAll('.tab-content')
+      .forEach((c) => c.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById(`tab-${tab.dataset.tab}`)?.classList.add('active');
   });
 });
 
 // ─── AUTH: REGISTER ───────────────────────────────────────────────────────────
-document.getElementById('register-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  try {
-    const user = await api('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
-    });
-    print({ registered: user }, 'POST /auth/register');
-    toast('✅ Registered! Now login to get your tokens.');
-    e.target.reset();
-  } catch (err) {
-    print({ error: err.message }, 'POST /auth/register');
-  }
-});
+document
+  .getElementById('register-form')
+  .addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      const user = await api('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: fd.get('email'),
+          password: fd.get('password'),
+        }),
+      });
+      print({ registered: user }, 'POST /auth/register');
+      toast('✅ Registered! Now login to get your tokens.');
+      e.target.reset();
+    } catch (err) {
+      print({ error: err.message }, 'POST /auth/register');
+    }
+  });
 
 // ─── AUTH: LOGIN ──────────────────────────────────────────────────────────────
 document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -351,7 +401,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   try {
     const data = await api('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
+      body: JSON.stringify({
+        email: fd.get('email'),
+        password: fd.get('password'),
+      }),
     });
     setSession(data);
     print(data, 'POST /auth/login');
@@ -374,7 +427,8 @@ document.getElementById('forgot-form').addEventListener('submit', async (e) => {
     print(data, 'POST /auth/forgot-password');
     if (data.resetToken) {
       toast('🔑 Reset token returned — copy it and use the Reset tab.');
-      document.querySelector('#reset-form input[name="token"]').value = data.resetToken;
+      document.querySelector('#reset-form input[name="token"]').value =
+        data.resetToken;
     } else {
       toast('✅ ' + data.message);
     }
@@ -391,7 +445,10 @@ document.getElementById('reset-form').addEventListener('submit', async (e) => {
   try {
     const data = await api('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ token: fd.get('token'), newPassword: fd.get('newPassword') }),
+      body: JSON.stringify({
+        token: fd.get('token'),
+        newPassword: fd.get('newPassword'),
+      }),
     });
     print(data, 'POST /auth/reset-password');
     toast('✅ Password reset. Login again with your new password.');
@@ -402,24 +459,29 @@ document.getElementById('reset-form').addEventListener('submit', async (e) => {
 });
 
 // ─── AUTH: REFRESH TOKEN (manual) ────────────────────────────────────────────
-document.getElementById('refresh-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  try {
-    const data = await api('/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ userId: fd.get('userId'), refreshToken: fd.get('refreshToken') }),
-    });
-    state.accessToken = data.accessToken;
-    state.refreshToken = data.refreshToken;
-    persistSession();
-    updateSessionUI();
-    print(data, 'POST /auth/refresh');
-    toast('🔄 Tokens rotated — old refresh token is now invalid.');
-  } catch (err) {
-    print({ error: err.message }, 'POST /auth/refresh');
-  }
-});
+document
+  .getElementById('refresh-form')
+  .addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      const data = await api('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: fd.get('userId'),
+          refreshToken: fd.get('refreshToken'),
+        }),
+      });
+      state.accessToken = data.accessToken;
+      state.refreshToken = data.refreshToken;
+      persistSession();
+      updateSessionUI();
+      print(data, 'POST /auth/refresh');
+      toast('🔄 Tokens rotated — old refresh token is now invalid.');
+    } catch (err) {
+      print({ error: err.message }, 'POST /auth/refresh');
+    }
+  });
 
 // ─── AUTH: LOGOUT ─────────────────────────────────────────────────────────────
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -462,15 +524,18 @@ document.getElementById('load-artists').addEventListener('click', loadArtists);
 
 document.getElementById('artist-search').addEventListener('input', (e) => {
   const q = e.target.value.trim();
-  if (!q) { loadArtists(); return; }
+  if (!q) {
+    loadArtists();
+    return;
+  }
   loadArtists(q);
 });
 
 async function loadArtists(search) {
   try {
-    const qs = search ? `?name=${encodeURIComponent(search)}` : '';
+    const qs = search ? `?q=${encodeURIComponent(search)}` : '';
     const data = await api(`/artist${qs}`);
-    print(data, `GET /artist${qs}`);
+    print(data, `GET /artist${qs || ''}`);
     renderList('artist-list', data, renderArtistCard);
   } catch (err) {
     print({ error: err.message }, 'GET /artist');
@@ -551,13 +616,17 @@ document.getElementById('album-form').addEventListener('submit', async (e) => {
       method: 'POST',
       body: JSON.stringify({
         title: fd.get('title'),
-        ...(releaseDate ? { releaseDate: new Date(releaseDate).toISOString() } : {}),
+        ...(releaseDate
+          ? { releaseDate: new Date(releaseDate).toISOString() }
+          : {}),
         artistId: fd.get('artistId'),
-        editions: [{
-          format: fd.get('editionFormat'),
-          copies: Number(fd.get('editionCopies')),
-          isLimited: false,
-        }],
+        editions: [
+          {
+            format: fd.get('editionFormat'),
+            copies: Number(fd.get('editionCopies')),
+            isLimited: false,
+          },
+        ],
       }),
     });
     print(data, 'POST /album (admin only)');
@@ -596,62 +665,74 @@ function renderAlbumCard(album) {
 }
 
 // ─── PLAYLISTS ────────────────────────────────────────────────────────────────
-document.getElementById('playlist-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  try {
-    const data = await api('/playlist', {
-      method: 'POST',
-      body: JSON.stringify({ title: fd.get('title'), author: fd.get('author') }),
-    });
-    print(data, 'POST /playlist');
-    toast('✅ Playlist created! You own it.');
-    e.target.reset();
-    loadPlaylists();
-  } catch (err) {
-    print({ error: err.message }, 'POST /playlist');
-    if (err.status === 401) toast('🔒 Login first', 'error');
-  }
-});
+document
+  .getElementById('playlist-form')
+  .addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      const data = await api('/playlist', {
+        method: 'POST',
+        body: JSON.stringify({ title: fd.get('title') }),
+      });
+      print(data, 'POST /playlist');
+      toast('✅ Playlist created! You own it.');
+      e.target.reset();
+      loadPlaylists();
+    } catch (err) {
+      print({ error: err.message }, 'POST /playlist');
+      if (err.status === 401) toast('🔒 Login first', 'error');
+    }
+  });
 
-document.getElementById('playlist-songs-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const id = fd.get('playlistId').trim();
-  const songIds = fd.get('songIds').split('\n').map(s => s.trim()).filter(Boolean);
-  try {
-    const data = await api(`/playlist/${id}/songs`, {
-      method: 'PUT',
-      body: JSON.stringify({ songIds }),
-    });
-    print(data, `PUT /playlist/${id}/songs`);
-    toast('✅ Songs updated!');
-    e.target.reset();
-    loadPlaylists();
-  } catch (err) {
-    print({ error: err.message }, `PUT /playlist/${id}/songs`);
-    if (err.status === 403) toast('🚫 You don\'t own this playlist', 'error');
-  }
-});
+document
+  .getElementById('playlist-songs-form')
+  .addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const id = fd.get('playlistId').trim();
+    const songIds = fd
+      .get('songIds')
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    try {
+      const data = await api(`/playlist/${id}/songs`, {
+        method: 'PUT',
+        body: JSON.stringify({ songIds }),
+      });
+      print(data, `PUT /playlist/${id}/songs`);
+      toast('✅ Songs updated!');
+      e.target.reset();
+      loadPlaylists();
+    } catch (err) {
+      print({ error: err.message }, `PUT /playlist/${id}/songs`);
+      if (err.status === 403) toast("🚫 You don't own this playlist", 'error');
+    }
+  });
 
-document.getElementById('playlist-delete-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const id = fd.get('playlistId').trim();
-  if (!confirm(`Delete playlist ${id}?`)) return;
-  try {
-    await api(`/playlist/${id}`, { method: 'DELETE' });
-    print({ deleted: id }, `DELETE /playlist/${id}`);
-    toast('🗑 Playlist deleted.');
-    e.target.reset();
-    loadPlaylists();
-  } catch (err) {
-    print({ error: err.message }, `DELETE /playlist/${id}`);
-    if (err.status === 403) toast('🚫 You don\'t own this playlist', 'error');
-  }
-});
+document
+  .getElementById('playlist-delete-form')
+  .addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const id = fd.get('playlistId').trim();
+    if (!confirm(`Delete playlist ${id}?`)) return;
+    try {
+      await api(`/playlist/${id}`, { method: 'DELETE' });
+      print({ deleted: id }, `DELETE /playlist/${id}`);
+      toast('🗑 Playlist deleted.');
+      e.target.reset();
+      loadPlaylists();
+    } catch (err) {
+      print({ error: err.message }, `DELETE /playlist/${id}`);
+      if (err.status === 403) toast("🚫 You don't own this playlist", 'error');
+    }
+  });
 
-document.getElementById('load-playlists').addEventListener('click', loadPlaylists);
+document
+  .getElementById('load-playlists')
+  .addEventListener('click', loadPlaylists);
 
 async function loadPlaylists() {
   try {
@@ -672,8 +753,8 @@ function renderPlaylistCard(pl) {
   const mineBadge = isOwner
     ? `<span class="item-card__mine">MINE</span>`
     : isAdmin && pl.owner
-    ? `<span class="item-card__mine" style="background:rgba(245,158,11,.1);color:var(--warning)">ADMIN</span>`
-    : '';
+      ? `<span class="item-card__mine" style="background:rgba(245,158,11,.1);color:var(--warning)">ADMIN</span>`
+      : '';
   return `
     <div class="item-card">
       <div class="item-card__name">📋 ${esc(pl.title)} ${mineBadge}</div>
@@ -698,13 +779,23 @@ function renderList(containerId, items, cardFn) {
 }
 
 function esc(str) {
-  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
+  return String(str ?? '').replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[c],
+  );
 }
 
 function copy(text) {
-  navigator.clipboard.writeText(text).then(() => toast('📋 Copied: ' + text.slice(0, 20) + '…'));
+  navigator.clipboard
+    .writeText(text)
+    .then(() => toast('📋 Copied: ' + text.slice(0, 20) + '…'));
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────

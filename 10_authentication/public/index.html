@@ -32,12 +32,14 @@
 
       <!-- ─── MAIN CONTENT ──────────────────────────────────────────────── -->
       <main class="content">
-
         <!-- ═══ AUTH SECTION ══════════════════════════════════════════════ -->
         <section id="section-auth" class="section active">
           <div class="section-header">
             <h2>Authentication Flows</h2>
-            <p class="section-desc">Complete auth flow: register, login, refresh tokens, forgot/reset password, logout.</p>
+            <p class="section-desc">
+              Complete auth flow: register, login, refresh tokens, forgot/reset
+              password, logout.
+            </p>
           </div>
 
           <!-- Token Status Panel -->
@@ -48,7 +50,9 @@
             </div>
             <div class="token-panel__row">
               <span class="token-panel__label">Token Expiry</span>
-              <span class="token-panel__value empty" id="token-expiry-display">—</span>
+              <span class="token-panel__value empty" id="token-expiry-display"
+                >—</span
+              >
             </div>
             <div class="token-panel__row">
               <span class="token-panel__label">Refresh Token</span>
@@ -60,7 +64,9 @@
             </div>
             <div class="token-panel__row">
               <span class="token-panel__label">Storage</span>
-              <span class="token-panel__value empty" id="storage-display">—</span>
+              <span class="token-panel__value empty" id="storage-display"
+                >—</span
+              >
             </div>
           </div>
 
@@ -78,15 +84,29 @@
           <div class="tab-content active" id="tab-register">
             <div class="card">
               <h3>Create a new account</h3>
-              <p class="hint">New accounts are created with <code>role: user</code> by default. Promote via DB to <code>admin</code>.</p>
+              <p class="hint">
+                New accounts are created with <code>role: user</code> by
+                default. Promote via DB to <code>admin</code>.
+              </p>
               <form id="register-form">
                 <div class="field">
                   <label>Email</label>
-                  <input name="email" type="email" placeholder="user@music.com" required />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="user@music.com"
+                    required
+                  />
                 </div>
                 <div class="field">
                   <label>Password <small>(min 8 chars)</small></label>
-                  <input name="password" type="password" placeholder="••••••••" minlength="8" required />
+                  <input
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    minlength="8"
+                    required
+                  />
                 </div>
                 <button type="submit" class="btn btn--primary">Register</button>
               </form>
@@ -97,15 +117,30 @@
           <div class="tab-content" id="tab-login">
             <div class="card">
               <h3>Login</h3>
-              <p class="hint">Returns <code>accessToken</code> (15m) + <code>refreshToken</code> (7d). Access token is kept in <strong>memory only</strong>; refresh token is saved to <strong>localStorage</strong> so your session survives a page reload. Expired access tokens are refreshed automatically.</p>
+              <p class="hint">
+                Returns <code>accessToken</code> (15m) +
+                <code>refreshToken</code> (7d). Both are saved to
+                <strong>localStorage</strong> so your session survives a page
+                reload. Expired access tokens are refreshed automatically.
+              </p>
               <form id="login-form">
                 <div class="field">
                   <label>Email</label>
-                  <input name="email" type="email" placeholder="user@music.com" required />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="user@music.com"
+                    required
+                  />
                 </div>
                 <div class="field">
                   <label>Password</label>
-                  <input name="password" type="password" placeholder="••••••••" required />
+                  <input
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                  />
                 </div>
                 <button type="submit" class="btn btn--primary">Login</button>
               </form>
@@ -118,15 +153,24 @@
               <h3>Forgot Password</h3>
               <p class="hint">
                 Generates a 1-hour reset token.
-                <strong>In production</strong> this would be emailed — here it's returned in the response so you can test it.
-                Copy the <code>resetToken</code> from the output and use it in the Reset tab.
+                <strong>In production</strong> this would be emailed — here it's
+                returned in the response so you can test it. Copy the
+                <code>resetToken</code> from the output and use it in the Reset
+                tab.
               </p>
               <form id="forgot-form">
                 <div class="field">
                   <label>Email</label>
-                  <input name="email" type="email" placeholder="user@music.com" required />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="user@music.com"
+                    required
+                  />
                 </div>
-                <button type="submit" class="btn btn--primary">Send Reset Token</button>
+                <button type="submit" class="btn btn--primary">
+                  Send Reset Token
+                </button>
               </form>
             </div>
           </div>
@@ -135,17 +179,32 @@
           <div class="tab-content" id="tab-reset">
             <div class="card">
               <h3>Reset Password</h3>
-              <p class="hint">Paste the <code>resetToken</code> UUID from the Forgot Password response.</p>
+              <p class="hint">
+                Paste the <code>resetToken</code> UUID from the Forgot Password
+                response.
+              </p>
               <form id="reset-form">
                 <div class="field">
                   <label>Reset Token (UUID)</label>
-                  <input name="token" placeholder="550e8400-e29b-41d4-..." required />
+                  <input
+                    name="token"
+                    placeholder="550e8400-e29b-41d4-..."
+                    required
+                  />
                 </div>
                 <div class="field">
                   <label>New Password <small>(min 8 chars)</small></label>
-                  <input name="newPassword" type="password" placeholder="••••••••" minlength="8" required />
+                  <input
+                    name="newPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    minlength="8"
+                    required
+                  />
                 </div>
-                <button type="submit" class="btn btn--primary">Reset Password</button>
+                <button type="submit" class="btn btn--primary">
+                  Reset Password
+                </button>
               </form>
             </div>
           </div>
@@ -155,20 +214,33 @@
             <div class="card">
               <h3>Refresh Token</h3>
               <p class="hint">
-                Exchanges the stored refresh token for a brand-new access + refresh token pair
-                (<strong>rotation</strong> — the old refresh token is invalidated immediately).
-                User ID and refresh token are auto-filled from the current session.
+                Exchanges the stored refresh token for a brand-new access +
+                refresh token pair (<strong>rotation</strong> — the old refresh
+                token is invalidated immediately). User ID and refresh token are
+                auto-filled from the current session.
               </p>
               <form id="refresh-form">
                 <div class="field">
                   <label>User ID</label>
-                  <input name="userId" id="refresh-userid-input" placeholder="Auto-filled after login" required />
+                  <input
+                    name="userId"
+                    id="refresh-userid-input"
+                    placeholder="Auto-filled after login"
+                    required
+                  />
                 </div>
                 <div class="field">
                   <label>Refresh Token</label>
-                  <input name="refreshToken" id="refresh-token-input" placeholder="Auto-filled after login" required />
+                  <input
+                    name="refreshToken"
+                    id="refresh-token-input"
+                    placeholder="Auto-filled after login"
+                    required
+                  />
                 </div>
-                <button type="submit" class="btn btn--primary">Refresh Tokens</button>
+                <button type="submit" class="btn btn--primary">
+                  Refresh Tokens
+                </button>
               </form>
             </div>
           </div>
@@ -178,8 +250,10 @@
             <div class="card">
               <h3>Logout</h3>
               <p class="hint">
-                Clears the stored refresh token hash in the database. Future refresh attempts with the old token will fail.
-                The access token remains valid until it expires (15m) — this is an accepted trade-off for stateless JWTs.
+                Clears the stored refresh token hash in the database. Future
+                refresh attempts with the old token will fail. The access token
+                remains valid until it expires (15m) — this is an accepted
+                trade-off for stateless JWTs.
               </p>
               <button id="logout-btn" class="btn btn--danger">Logout</button>
             </div>
@@ -191,8 +265,10 @@
           <div class="section-header">
             <h2>Artists</h2>
             <p class="section-desc">
-              <span class="badge badge--info">GET</span> available to all users &nbsp;·&nbsp;
-              <span class="badge badge--warning">POST / PATCH / DELETE</span> admin only
+              <span class="badge badge--info">GET</span> available to all users
+              &nbsp;·&nbsp;
+              <span class="badge badge--warning">POST / PATCH / DELETE</span>
+              admin only
             </p>
           </div>
 
@@ -219,7 +295,9 @@
                   <label>Country</label>
                   <input name="country" placeholder="e.g. UK" required />
                 </div>
-                <button type="submit" class="btn btn--primary">Create Artist</button>
+                <button type="submit" class="btn btn--primary">
+                  Create Artist
+                </button>
               </form>
             </div>
 
@@ -230,7 +308,9 @@
                 <input id="artist-search" placeholder="e.g. The Beatles" />
               </div>
               <div class="btn-row">
-                <button id="load-artists" class="btn btn--secondary">Load All Artists</button>
+                <button id="load-artists" class="btn btn--secondary">
+                  Load All Artists
+                </button>
               </div>
               <div id="artist-list" class="item-list"></div>
             </div>
@@ -243,7 +323,8 @@
             <h2>Songs</h2>
             <p class="section-desc">
               <span class="badge badge--info">GET</span> all users &nbsp;·&nbsp;
-              <span class="badge badge--warning">POST / PATCH / DELETE</span> admin only
+              <span class="badge badge--warning">POST / PATCH / DELETE</span>
+              admin only
             </p>
           </div>
 
@@ -257,24 +338,39 @@
                 </div>
                 <div class="field">
                   <label>Duration (seconds)</label>
-                  <input name="durationSeconds" type="number" min="1" max="1800" placeholder="240" required />
+                  <input
+                    name="durationSeconds"
+                    type="number"
+                    min="1"
+                    max="1800"
+                    placeholder="240"
+                    required
+                  />
                 </div>
                 <div class="field">
                   <label>Artist UUID</label>
-                  <input name="artistId" placeholder="Paste artist UUID" required />
+                  <input
+                    name="artistId"
+                    placeholder="Paste artist UUID"
+                    required
+                  />
                 </div>
                 <label class="checkbox-row">
                   <input name="isExplicit" type="checkbox" />
                   Explicit content
                 </label>
-                <button type="submit" class="btn btn--primary">Create Song</button>
+                <button type="submit" class="btn btn--primary">
+                  Create Song
+                </button>
               </form>
             </div>
 
             <div class="card">
               <h3>Browse Songs</h3>
               <div class="btn-row">
-                <button id="load-songs" class="btn btn--secondary">Load All Songs</button>
+                <button id="load-songs" class="btn btn--secondary">
+                  Load All Songs
+                </button>
               </div>
               <div id="song-list" class="item-list"></div>
             </div>
@@ -287,7 +383,8 @@
             <h2>Albums</h2>
             <p class="section-desc">
               <span class="badge badge--info">GET</span> all users &nbsp;·&nbsp;
-              <span class="badge badge--warning">POST / PATCH / DELETE</span> admin only
+              <span class="badge badge--warning">POST / PATCH / DELETE</span>
+              admin only
             </p>
           </div>
 
@@ -305,7 +402,11 @@
                 </div>
                 <div class="field">
                   <label>Artist UUID</label>
-                  <input name="artistId" placeholder="Paste artist UUID" required />
+                  <input
+                    name="artistId"
+                    placeholder="Paste artist UUID"
+                    required
+                  />
                 </div>
                 <div class="field">
                   <label>Edition Format</label>
@@ -318,16 +419,26 @@
                 </div>
                 <div class="field">
                   <label>Copies</label>
-                  <input name="editionCopies" type="number" min="1" value="1000" required />
+                  <input
+                    name="editionCopies"
+                    type="number"
+                    min="1"
+                    value="1000"
+                    required
+                  />
                 </div>
-                <button type="submit" class="btn btn--primary">Create Album</button>
+                <button type="submit" class="btn btn--primary">
+                  Create Album
+                </button>
               </form>
             </div>
 
             <div class="card">
               <h3>Browse Albums</h3>
               <div class="btn-row">
-                <button id="load-albums" class="btn btn--secondary">Load All Albums</button>
+                <button id="load-albums" class="btn btn--secondary">
+                  Load All Albums
+                </button>
               </div>
               <div id="album-list" class="item-list"></div>
             </div>
@@ -339,41 +450,57 @@
           <div class="section-header">
             <h2>Playlists</h2>
             <p class="section-desc">
-              Any authenticated user can create playlists. You can only <strong>edit or delete your own</strong> playlists.
-              Admins can edit/delete any playlist.
+              Any authenticated user can create playlists. You can only
+              <strong>edit or delete your own</strong> playlists. Admins can
+              edit/delete any playlist.
             </p>
           </div>
 
           <div class="two-col">
             <div class="card">
               <h3>Create Playlist</h3>
-              <p class="hint">You become the owner automatically. Only you (or an admin) can edit or delete it.</p>
+              <p class="hint">
+                You become the owner automatically. Only you (or an admin) can
+                edit or delete it.
+              </p>
               <form id="playlist-form">
                 <div class="field">
                   <label>Title</label>
                   <input name="title" placeholder="My Roadtrip Mix" required />
                 </div>
-                <div class="field">
-                  <label>Author (display name)</label>
-                  <input name="author" placeholder="Your display name" required />
-                </div>
-                <button type="submit" class="btn btn--primary">Create Playlist</button>
+
+                <button type="submit" class="btn btn--primary">
+                  Create Playlist
+                </button>
               </form>
 
               <div class="divider"></div>
 
               <h3>Add Songs to Playlist</h3>
-              <p class="hint">Replaces ALL songs in the playlist (PUT semantics). Only owner or admin.</p>
+              <p class="hint">
+                Replaces ALL songs in the playlist (PUT semantics). Only owner
+                or admin.
+              </p>
               <form id="playlist-songs-form">
                 <div class="field">
                   <label>Playlist UUID</label>
-                  <input name="playlistId" placeholder="Paste playlist UUID" required />
+                  <input
+                    name="playlistId"
+                    placeholder="Paste playlist UUID"
+                    required
+                  />
                 </div>
                 <div class="field">
                   <label>Song UUIDs <small>(one per line)</small></label>
-                  <textarea name="songIds" rows="4" placeholder="uuid-1&#10;uuid-2&#10;uuid-3"></textarea>
+                  <textarea
+                    name="songIds"
+                    rows="4"
+                    placeholder="uuid-1&#10;uuid-2&#10;uuid-3"
+                  ></textarea>
                 </div>
-                <button type="submit" class="btn btn--primary">Set Songs</button>
+                <button type="submit" class="btn btn--primary">
+                  Set Songs
+                </button>
               </form>
 
               <div class="divider"></div>
@@ -383,29 +510,38 @@
               <form id="playlist-delete-form">
                 <div class="field">
                   <label>Playlist UUID</label>
-                  <input name="playlistId" placeholder="Paste playlist UUID" required />
+                  <input
+                    name="playlistId"
+                    placeholder="Paste playlist UUID"
+                    required
+                  />
                 </div>
-                <button type="submit" class="btn btn--danger">Delete Playlist</button>
+                <button type="submit" class="btn btn--danger">
+                  Delete Playlist
+                </button>
               </form>
             </div>
 
             <div class="card">
               <h3>Browse Playlists</h3>
               <div class="btn-row">
-                <button id="load-playlists" class="btn btn--secondary">Load All Playlists</button>
+                <button id="load-playlists" class="btn btn--secondary">
+                  Load All Playlists
+                </button>
               </div>
               <div id="playlist-list" class="item-list"></div>
             </div>
           </div>
         </section>
-
       </main>
 
       <!-- ─── OUTPUT PANEL ───────────────────────────────────────────────── -->
       <aside class="output-panel">
         <div class="output-panel__header">
           <span>Response</span>
-          <button id="clear-output" class="btn btn--ghost btn--sm">Clear</button>
+          <button id="clear-output" class="btn btn--ghost btn--sm">
+            Clear
+          </button>
         </div>
         <div id="output-status" class="output-status"></div>
         <pre id="output">Waiting for requests...</pre>
