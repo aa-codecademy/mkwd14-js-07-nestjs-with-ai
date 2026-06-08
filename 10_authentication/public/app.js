@@ -1,9 +1,10 @@
 // ─── STATE ────────────────────────────────────────────────────────────────────
-// In a real app access tokens live in memory (not localStorage) to prevent XSS.
-// Refresh tokens ideally live in httpOnly cookies; here we store in memory for
-// demo simplicity.
+// Access token lives in memory only — localStorage is readable by any script,
+// so keeping the short-lived access token out of it limits XSS blast radius.
+// Refresh token is persisted to localStorage so the session survives a page
+// reload. In production, prefer an httpOnly cookie for the refresh token.
 const state = {
-  accessToken: null,
+  accessToken: null,    // memory only — gone on page reload (intentional)
   refreshToken: null,
   userId: null,
   userEmail: null,
@@ -11,14 +12,92 @@ const state = {
 };
 
 const API = '/api';
+const STORAGE_KEY = 'nestjs_auth_session';
+
+// ─── PERSISTENT STORAGE ───────────────────────────────────────────────────────
+// Save refresh token + identity to localStorage so the session survives reload.
+// Access token is NOT saved — it stays in memory only.
+function persistSession() {
+  if (state.refreshToken) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      refreshToken: state.refreshToken,
+      userId: state.userId,
+      userEmail: state.userEmail,
+      userRole: state.userRole,
+    }));
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+// On page load, restore identity + refresh token from localStorage.
+// The access token is gone — it will be obtained automatically on the first
+// request that gets a 401, via silentRefresh().
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const { refreshToken, userId, userEmail, userRole } = JSON.parse(raw);
+    if (!refreshToken || !userId) { localStorage.removeItem(STORAGE_KEY); return; }
+    state.refreshToken = refreshToken;
+    state.userId = userId;
+    state.userEmail = userEmail;
+    state.userRole = userRole;
+    // No access token yet — silentRefresh() will fire on the first 401.
+    updateSessionUI();
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+// ─── JWT CLIENT DECODE (no verification) ──────────────────────────────────────
+// Decodes the payload section of a JWT for display purposes only.
+// The server is the authority — never trust client-decoded claims for security.
+function decodeJwt(token) {
+  try {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(b64));
+  } catch {
+    return null;
+  }
+}
+
+// ─── SILENT TOKEN REFRESH ─────────────────────────────────────────────────────
+// Exchanges the stored refresh token for a fresh token pair. Returns a single
+// shared Promise so concurrent 401s don't trigger multiple refresh requests.
+let _refreshInFlight = null;
+
+async function silentRefresh() {
+  if (_refreshInFlight) return _refreshInFlight;
+
+  _refreshInFlight = (async () => {
+    if (!state.userId || !state.refreshToken) {
+      throw new Error('No session to refresh');
+    }
+    const res = await fetch(`${API}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: state.userId, refreshToken: state.refreshToken }),
+    });
+    if (!res.ok) throw new Error('Refresh failed');
+    const data = await res.json();
+    state.accessToken = data.accessToken;
+    state.refreshToken = data.refreshToken;
+    persistSession();
+    updateSessionUI();
+    toast('🔄 Access token silently refreshed.');
+    return data;
+  })().finally(() => { _refreshInFlight = null; });
+
+  return _refreshInFlight;
+}
 
 // ─── API HELPER ───────────────────────────────────────────────────────────────
-async function api(path, options = {}) {
+// _retry flag prevents infinite loops: we only auto-refresh once per call.
+async function api(path, options = {}, _retry = false) {
   setLoading(true);
 
   const headers = { 'Content-Type': 'application/json' };
-
-  // Attach JWT if we have one
   if (state.accessToken) {
     headers['Authorization'] = `Bearer ${state.accessToken}`;
   }
@@ -28,6 +107,18 @@ async function api(path, options = {}) {
       ...options,
       headers: { ...headers, ...(options.headers || {}) },
     });
+
+    // ── Auto-refresh on 401 ──────────────────────────────────────────────────
+    if (res.status === 401 && !_retry) {
+      try {
+        await silentRefresh();
+        setLoading(false);
+        return api(path, options, true);   // retry once with the new access token
+      } catch {
+        clearSession();
+        throw new ApiError(401, 'Session expired — please log in again.');
+      }
+    }
 
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const body = res.status === 204 ? null : isJson ? await res.json() : await res.text();
@@ -117,6 +208,8 @@ function updateSessionUI() {
   const tokenDisplay = document.getElementById('token-display');
   const refreshDisplay = document.getElementById('refresh-display');
   const useridDisplay = document.getElementById('userid-display');
+  const tokenExpiryDisplay = document.getElementById('token-expiry-display');
+  const storageDisplay = document.getElementById('storage-display');
   const refreshUseridInput = document.getElementById('refresh-userid-input');
   const refreshTokenInput = document.getElementById('refresh-token-input');
 
@@ -129,23 +222,56 @@ function updateSessionUI() {
       </div>
       <span class="badge ${roleClass}">${state.userRole || 'user'}</span>
     `;
+  } else if (state.refreshToken) {
+    statusEl.innerHTML = `<span class="badge badge--user">Session stored — awaiting refresh</span>`;
   } else {
     statusEl.innerHTML = `<span class="badge badge--guest">Not logged in</span>`;
   }
 
-  // Token panel
-  const shortToken = state.accessToken
-    ? state.accessToken.slice(0, 24) + '…'
-    : '—';
-  const shortRefresh = state.refreshToken
-    ? state.refreshToken.slice(0, 20) + '…'
-    : '—';
-
+  // Access token display
+  const shortToken = state.accessToken ? state.accessToken.slice(0, 24) + '…' : '—';
   tokenDisplay.textContent = shortToken;
   tokenDisplay.className = 'token-panel__value' + (state.accessToken ? '' : ' empty');
 
+  // Access token expiry countdown
+  if (tokenExpiryDisplay) {
+    const payload = state.accessToken ? decodeJwt(state.accessToken) : null;
+    if (payload?.exp) {
+      const secsLeft = payload.exp - Math.floor(Date.now() / 1000);
+      if (secsLeft > 0) {
+        const mins = Math.floor(secsLeft / 60);
+        const secs = secsLeft % 60;
+        const label = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        tokenExpiryDisplay.textContent = `Expires in ${label}`;
+        tokenExpiryDisplay.className = 'token-panel__value' + (secsLeft < 30 ? ' expiring' : '');
+      } else {
+        tokenExpiryDisplay.textContent = 'Expired (auto-refresh pending)';
+        tokenExpiryDisplay.className = 'token-panel__value expiring';
+      }
+    } else {
+      tokenExpiryDisplay.textContent = state.refreshToken ? 'No access token — will refresh on next request' : '—';
+      tokenExpiryDisplay.className = 'token-panel__value empty';
+    }
+  }
+
+  // Refresh token display
+  const shortRefresh = state.refreshToken ? state.refreshToken.slice(0, 20) + '…' : '—';
   refreshDisplay.textContent = shortRefresh;
   refreshDisplay.className = 'token-panel__value' + (state.refreshToken ? '' : ' empty');
+
+  // Storage location labels
+  if (storageDisplay) {
+    if (state.accessToken && state.refreshToken) {
+      storageDisplay.textContent = 'Access: memory · Refresh: localStorage';
+      storageDisplay.className = 'token-panel__value';
+    } else if (state.refreshToken) {
+      storageDisplay.textContent = 'Refresh: localStorage (access token will be fetched automatically)';
+      storageDisplay.className = 'token-panel__value';
+    } else {
+      storageDisplay.textContent = '—';
+      storageDisplay.className = 'token-panel__value empty';
+    }
+  }
 
   useridDisplay.textContent = state.userId || '—';
   useridDisplay.className = 'token-panel__value mono' + (state.userId ? '' : ' empty');
@@ -161,6 +287,7 @@ function setSession({ user, accessToken, refreshToken }) {
   state.userId = user?.id ?? state.userId;
   state.userEmail = user?.email ?? state.userEmail;
   state.userRole = user?.role ?? state.userRole;
+  persistSession();
   updateSessionUI();
 }
 
@@ -170,8 +297,14 @@ function clearSession() {
   state.userId = null;
   state.userEmail = null;
   state.userRole = null;
+  persistSession();   // removes the localStorage entry
   updateSessionUI();
 }
+
+// Tick the expiry countdown every second while a token is active.
+setInterval(() => {
+  if (state.accessToken || state.refreshToken) updateSessionUI();
+}, 1000);
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 document.querySelectorAll('.nav-btn').forEach((btn) => {
@@ -241,7 +374,6 @@ document.getElementById('forgot-form').addEventListener('submit', async (e) => {
     print(data, 'POST /auth/forgot-password');
     if (data.resetToken) {
       toast('🔑 Reset token returned — copy it and use the Reset tab.');
-      // Auto-fill the reset form for convenience
       document.querySelector('#reset-form input[name="token"]').value = data.resetToken;
     } else {
       toast('✅ ' + data.message);
@@ -269,7 +401,7 @@ document.getElementById('reset-form').addEventListener('submit', async (e) => {
   }
 });
 
-// ─── AUTH: REFRESH TOKEN ──────────────────────────────────────────────────────
+// ─── AUTH: REFRESH TOKEN (manual) ────────────────────────────────────────────
 document.getElementById('refresh-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
@@ -278,9 +410,9 @@ document.getElementById('refresh-form').addEventListener('submit', async (e) => 
       method: 'POST',
       body: JSON.stringify({ userId: fd.get('userId'), refreshToken: fd.get('refreshToken') }),
     });
-    // Update tokens — keep existing user info
     state.accessToken = data.accessToken;
     state.refreshToken = data.refreshToken;
+    persistSession();
     updateSessionUI();
     print(data, 'POST /auth/refresh');
     toast('🔄 Tokens rotated — old refresh token is now invalid.');
@@ -534,7 +666,6 @@ async function loadPlaylists() {
 function renderPlaylistCard(pl) {
   const isOwner = pl.owner?.id && pl.owner.id === state.userId;
   const isAdmin = state.userRole === 'admin';
-  const canEdit = isOwner || isAdmin;
   const ownerTag = pl.owner
     ? `<span>👤 ${esc(pl.owner.email ?? pl.owner.id?.slice(0, 8))}</span>`
     : `<span style="color:var(--text-dim)">No owner</span>`;
@@ -577,4 +708,5 @@ function copy(text) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+restoreSession();
 updateSessionUI();

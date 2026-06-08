@@ -13,6 +13,8 @@ import { JwtService } from '@nestjs/jwt';
 import type { JwtPayload } from './types/jwt';
 import { ConfigService } from '@nestjs/config/dist/config.service';
 import type { RefreshDto } from './dto/refresh.dto';
+import { randomUUID } from 'crypto';
+import type { ResetPasswordDto } from './dto/reset-password.dto';
 
 /**
  * AuthService — the brain of the authentication system.
@@ -210,5 +212,59 @@ export class AuthService {
 
       throw new UnauthorizedException('Invalid or expired token');
     }
+  }
+
+  async logout(userId: string): Promise<void> {
+    await this.userService.clearRefreshToken(userId);
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    try {
+      const user = await this.userService.getUserByEmail(email);
+
+      const resetCode = randomUUID();
+
+      this.logger.info(
+        '[DEV MODE ONLY] AuthService forgotPassword, reset password code:',
+        resetCode,
+      );
+
+      const expiresAt = new Date(Date.now() + 1 * 60 * 1000); // in 15 minutes
+
+      await this.userService.storePasswordResetCode(
+        user.id,
+        resetCode,
+        expiresAt,
+      );
+
+      return {
+        message:
+          'If a user with that email exists, a reset link has been sent to the email.',
+      };
+    } catch (error: unknown) {
+      this.logger.error('AuthService forgotPassword: ', JSON.stringify(error));
+      return {
+        message:
+          'If a user with that email exists, a reset link has been sent to the email.',
+      };
+    }
+  }
+
+  async resetPassword(body: ResetPasswordDto): Promise<{ message: string }> {
+    const user: User | null = await this.userService.getUserByPasswordResetCode(
+      body.code,
+    );
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset code.');
+    }
+
+    try {
+      await this.userService.resetPassword(user.id, body.newPassword);
+    } catch {
+      throw new BadRequestException('Invalid or expired reset code.');
+    }
+
+    return { message: 'Password has been reset successfully.' };
   }
 }

@@ -47,12 +47,20 @@
               <span class="token-panel__value" id="token-display">—</span>
             </div>
             <div class="token-panel__row">
+              <span class="token-panel__label">Token Expiry</span>
+              <span class="token-panel__value empty" id="token-expiry-display">—</span>
+            </div>
+            <div class="token-panel__row">
               <span class="token-panel__label">Refresh Token</span>
               <span class="token-panel__value" id="refresh-display">—</span>
             </div>
             <div class="token-panel__row">
               <span class="token-panel__label">User ID</span>
               <span class="token-panel__value mono" id="userid-display">—</span>
+            </div>
+            <div class="token-panel__row">
+              <span class="token-panel__label">Storage</span>
+              <span class="token-panel__value empty" id="storage-display">—</span>
             </div>
           </div>
 
@@ -89,7 +97,7 @@
           <div class="tab-content" id="tab-login">
             <div class="card">
               <h3>Login</h3>
-              <p class="hint">Returns <code>accessToken</code> (15m) + <code>refreshToken</code> (7d). Both are stored in memory.</p>
+              <p class="hint">Returns <code>accessToken</code> (15m) + <code>refreshToken</code> (7d). Access token is kept in <strong>memory only</strong>; refresh token is saved to <strong>localStorage</strong> so your session survives a page reload. Expired access tokens are refreshed automatically.</p>
               <form id="login-form">
                 <div class="field">
                   <label>Email</label>

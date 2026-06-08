@@ -177,6 +177,55 @@ export class UserService {
     });
   }
 
+  async clearRefreshToken(userId: string): Promise<void> {
+    await this.userRepository.update(userId, {
+      refreshTokenHash: null,
+      refreshTokenExpiry: null,
+    });
+  }
+
+  async storePasswordResetCode(
+    userId: string,
+    resetPasswordCode: string,
+    resetPasswordExpiry: Date,
+  ): Promise<void> {
+    const resetPasswordHash = await bcrypt.hash(resetPasswordCode, 10);
+
+    await this.userRepository.update(userId, {
+      resetPasswordHash,
+      resetPasswordExpiry,
+    });
+  }
+
+  async getUserByPasswordResetCode(code: string): Promise<User | null> {
+    const candidates = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.resetPasswordHash')
+      .where('user.resetPasswordExpiry > :now', { now: new Date() })
+      .andWhere('user.resetPasswordHash IS NOT NULL')
+      .getMany();
+
+    for (const candidate of candidates) {
+      const isMatch = await bcrypt.compare(code, candidate.resetPasswordHash!);
+
+      if (isMatch) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  async resetPassword(userId: string, newPassword: string): Promise<void> {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await this.userRepository.update(userId, {
+      passwordHash,
+      resetPasswordHash: null,
+      resetPasswordExpiry: null,
+    });
+  }
+
   /**
    * verifyPassword() — checks if the provided plain-text password matches the
    * stored bcrypt hash for the given email.

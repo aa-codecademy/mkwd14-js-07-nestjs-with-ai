@@ -1,7 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -14,6 +15,10 @@ import { User } from '../user/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { Public } from './decorators/public.decorator';
+import { CurrentUser } from './decorators/current-user.decorator';
+import type { AuthUser } from './types/auth-user';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 /**
  * AuthController — HTTP entry point for all authentication endpoints.
@@ -34,7 +39,7 @@ import { Public } from './decorators/public.decorator';
  * responses this endpoint can return so developers can explore the API at /docs.
  */
 @ApiTags('Authentication')
-@Public()
+// @Public() - we can use this here only when all routes are public
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -59,6 +64,7 @@ export class AuthController {
   @ApiConflictResponse({
     description: 'Email is already in use.',
   })
+  @Public()
   @Post('register')
   register(@Body() credentials: RegisterDto): Promise<User> {
     // @Body() extracts and deserializes the request body JSON into a RegisterDto
@@ -86,6 +92,8 @@ export class AuthController {
   @ApiBadRequestResponse({
     description: 'Invalid credentials.',
   })
+  @HttpCode(HttpStatus.OK)
+  @Public()
   @Post('login')
   login(@Body() credentials: LoginDto) {
     return this.authService.login(credentials);
@@ -113,8 +121,48 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Invalid or expired refresh token.',
   })
+  @HttpCode(HttpStatus.OK)
+  @Public()
   @Post('refresh')
   refresh(@Body() body: RefreshDto) {
     return this.authService.refresh(body);
+  }
+
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Logout user - revoke the refresh token' })
+  @ApiOkResponse({ description: 'User has been successfully logged out' })
+  @HttpCode(HttpStatus.OK)
+  @Post('logout')
+  async logout(@CurrentUser() user: AuthUser) {
+    console.log('🚀 ~ AuthController ~ logout ~ user:', user);
+    if (user?.id) {
+      await this.authService.logout(user.id);
+    }
+
+    return { message: 'Logged out successfully.' };
+  }
+
+  @ApiOperation({ summary: 'Request a password reset code' })
+  @ApiOkResponse({
+    description: 'Reset code issued',
+  })
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('forgot-password')
+  async forgotPassword(
+    @Body() body: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiOkResponse({
+    description: 'Password has been reset',
+  })
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  resetPassword(@Body() body: ResetPasswordDto): Promise<{ message: string }> {
+    return this.authService.resetPassword(body);
   }
 }

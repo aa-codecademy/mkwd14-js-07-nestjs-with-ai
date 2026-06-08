@@ -63,6 +63,12 @@ export class User {
   passwordHash!: string;
 
   @Column({ type: 'text', nullable: true, select: false })
+  resetPasswordHash!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true, select: false })
+  resetPasswordExpiry!: Date | null;
+
+  @Column({ type: 'text', nullable: true, select: false })
   refreshTokenHash!: string | null;
 
   @Column({ type: 'timestamptz', nullable: true, select: false })

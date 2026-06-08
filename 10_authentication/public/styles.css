@@ -209,6 +209,7 @@ body {
 
 .token-panel__value.empty { color: var(--text-dim); }
 .token-panel__value.mono { color: var(--info); }
+.token-panel__value.expiring { color: var(--warning); font-weight: 600; }
 
 /* ─── TABS ────────────────────────────────────────────────────────────────── */
 .tabs {
