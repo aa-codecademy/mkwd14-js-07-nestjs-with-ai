@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -104,8 +105,35 @@ export class AuthService {
         throw new BadRequestException('Invalid credentials');
       }
 
-      const { accessToken, refreshToken } =
-        await this.#generatePairOfTokens(user);
+      // Build the JWT payload — only non-sensitive, stable identifiers.
+      // sub = "subject" (RFC 7519 standard claim) = user's UUID.
+      const payload: JwtPayload = { sub: user.id, username: user.email };
+
+      // signAsync creates the signed token string.
+      // We pass secret + expiresIn explicitly here (even though JwtModule is
+      // configured with defaults in auth.module.ts) so that each login call
+      // always uses the current env values — useful if secrets ever rotate.
+      const accessToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: this.configService.get('JWT_EXPIRES_IN'),
+      });
+
+      const refreshToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
+      });
+
+      // const days = parseInt(
+      //   this.configService.get('JWT_REFRESH_EXPIRES_IN')!,
+      //   10,
+      // );
+
+      // const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+      // For testing purposes
+      const minutes = 2;
+      const expiry = new Date(Date.now() + minutes * 60 * 1000);
+      await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
 
       // Return the user record (passwordHash is excluded by { select: false })
       // alongside the token so the client can bootstrap its UI immediately
@@ -155,8 +183,27 @@ export class AuthService {
         body.refreshToken,
       );
 
-      const { accessToken, refreshToken } =
-        await this.#generatePairOfTokens(user);
+      const payload: JwtPayload = { sub: user.id, username: user.email };
+
+      // New short-lived access token — clients use this for API requests.
+      const accessToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: this.configService.get('JWT_EXPIRES_IN'),
+      });
+
+      // New long-lived refresh token — client stores this for the next refresh.
+      // Signed with a DIFFERENT secret than the access token.
+      const refreshToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
+      });
+
+      // For testing purposes (production would parse JWT_REFRESH_EXPIRES_IN as days)
+      const minutes = 2;
+      const expiry = new Date(Date.now() + minutes * 60 * 1000);
+
+      // Overwrite the stored hash — old refresh token is now invalid (rotation).
+      await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
 
       return { user, accessToken, refreshToken };
     } catch (error: unknown) {
@@ -219,33 +266,5 @@ export class AuthService {
     }
 
     return { message: 'Password has been reset successfully.' };
-  }
-
-  async #generatePairOfTokens(
-    user: User,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload: JwtPayload = { sub: user.id, username: user.email };
-
-    // New short-lived access token — clients use this for API requests.
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: this.configService.get('JWT_EXPIRES_IN'),
-    });
-
-    // New long-lived refresh token — client stores this for the next refresh.
-    // Signed with a DIFFERENT secret than the access token.
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
-    });
-
-    // For testing purposes (production would parse JWT_REFRESH_EXPIRES_IN as days)
-    const minutes = 2;
-    const expiry = new Date(Date.now() + minutes * 60 * 1000);
-
-    // Overwrite the stored hash — old refresh token is now invalid (rotation).
-    await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
-
-    return { accessToken, refreshToken };
   }
 }
