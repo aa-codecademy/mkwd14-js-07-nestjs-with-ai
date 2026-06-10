@@ -1,13 +1,11 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { RegisterDto } from './dto/register.dto';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/user.entity';
-import type { LoginDto } from './dto/login.dto';
 import { LoggerService } from '../logger/logger.service';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtPayload } from './types/jwt';
@@ -94,46 +92,10 @@ export class AuthService {
    *   We still LOG the real error so developers can debug without exposing it
    *   to the caller.
    */
-  async login(credentials: LoginDto) {
+  async login(user: User) {
     try {
-      const user = await this.userService.getUserByEmail(credentials.email);
-
-      const isPasswordValid =
-        await this.userService.verifyPassword(credentials);
-
-      if (!isPasswordValid) {
-        throw new BadRequestException('Invalid credentials');
-      }
-
-      // Build the JWT payload — only non-sensitive, stable identifiers.
-      // sub = "subject" (RFC 7519 standard claim) = user's UUID.
-      const payload: JwtPayload = { sub: user.id, username: user.email };
-
-      // signAsync creates the signed token string.
-      // We pass secret + expiresIn explicitly here (even though JwtModule is
-      // configured with defaults in auth.module.ts) so that each login call
-      // always uses the current env values — useful if secrets ever rotate.
-      const accessToken = await this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES_IN'),
-      });
-
-      const refreshToken = await this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
-      });
-
-      // const days = parseInt(
-      //   this.configService.get('JWT_REFRESH_EXPIRES_IN')!,
-      //   10,
-      // );
-
-      // const expiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-
-      // For testing purposes
-      const minutes = 2;
-      const expiry = new Date(Date.now() + minutes * 60 * 1000);
-      await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
+      const { accessToken, refreshToken } =
+        await this.#generatePairOfTokens(user);
 
       // Return the user record (passwordHash is excluded by { select: false })
       // alongside the token so the client can bootstrap its UI immediately
@@ -183,27 +145,8 @@ export class AuthService {
         body.refreshToken,
       );
 
-      const payload: JwtPayload = { sub: user.id, username: user.email };
-
-      // New short-lived access token — clients use this for API requests.
-      const accessToken = await this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES_IN'),
-      });
-
-      // New long-lived refresh token — client stores this for the next refresh.
-      // Signed with a DIFFERENT secret than the access token.
-      const refreshToken = await this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
-      });
-
-      // For testing purposes (production would parse JWT_REFRESH_EXPIRES_IN as days)
-      const minutes = 2;
-      const expiry = new Date(Date.now() + minutes * 60 * 1000);
-
-      // Overwrite the stored hash — old refresh token is now invalid (rotation).
-      await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
+      const { accessToken, refreshToken } =
+        await this.#generatePairOfTokens(user);
 
       return { user, accessToken, refreshToken };
     } catch (error: unknown) {
@@ -214,60 +157,22 @@ export class AuthService {
     }
   }
 
-  /**
-   * logout() — server-side half of the logout flow.
-   *
-   * Clears the stored refresh token hash in the database so the client's
-   * refresh token is immediately invalidated. The access token is NOT
-   * invalidated here (JWTs are stateless — there is no server-side revocation
-   * list). It remains technically valid until its exp claim passes, but since
-   * access tokens are short-lived (2 minutes in dev), the window is small.
-   *
-   * The client is responsible for also discarding its local copies of both
-   * tokens (see clearSession() in app.js).
-   */
   async logout(userId: string): Promise<void> {
     await this.userService.clearRefreshToken(userId);
   }
 
-  /**
-   * forgotPassword() — initiates the password-reset flow.
-   *
-   * FLOW:
-   *   1. Look up the user by email. If the email is not registered, we still
-   *      return the same generic message — this prevents email enumeration.
-   *      An attacker cannot tell whether an email is in our system.
-   *
-   *   2. Generate a cryptographically random UUID as the reset code.
-   *      randomUUID() uses the OS CSPRNG — it is not guessable.
-   *
-   *   3. Hash and store the code with an expiry (1 minute in dev, 15 min in prod).
-   *      The raw code is never stored — only its bcrypt hash (same reason as passwords).
-   *
-   *   4. In production: email the raw code to the user as a link.
-   *      In this demo: log it to the server console AND return it in the response
-   *      body so the flow can be tested without a mail server.
-   *
-   * WHY CATCH ALL ERRORS AND RETURN THE SAME MESSAGE?
-   * If getUserByEmail throws (unknown email) we catch it and return the same
-   * "if a user with that email exists…" message. Returning a different message
-   * for unknown emails would let an attacker enumerate registered addresses.
-   */
   async forgotPassword(email: string): Promise<{ message: string }> {
     try {
       const user = await this.userService.getUserByEmail(email);
 
-      // randomUUID() is a Node.js built-in backed by the OS CSPRNG.
-      // It produces a 36-character UUID v4 with ~122 bits of entropy.
       const resetCode = randomUUID();
 
-      // [DEV ONLY] In production this would be sent via email, never logged.
       this.logger.info(
         '[DEV MODE ONLY] AuthService forgotPassword, reset password code:',
         resetCode,
       );
 
-      const expiresAt = new Date(Date.now() + 1 * 60 * 1000); // 1 minute in dev
+      const expiresAt = new Date(Date.now() + 1 * 60 * 1000); // in 15 minutes
 
       await this.userService.storePasswordResetCode(
         user.id,
@@ -280,8 +185,6 @@ export class AuthService {
           'If a user with that email exists, a reset link has been sent to the email.',
       };
     } catch (error: unknown) {
-      // Catch everything — unknown email, DB error, etc. — and return the same
-      // message to prevent leaking whether the email is registered.
       this.logger.error('AuthService forgotPassword: ', JSON.stringify(error));
       return {
         message:
@@ -290,25 +193,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * resetPassword() — completes the password-reset flow.
-   *
-   * FLOW:
-   *   1. getUserByPasswordResetCode(code) — scans users with non-expired
-   *      resetPasswordHash and bcrypt.compare()s each one. Returns the matching
-   *      user, or null if the code is invalid or expired.
-   *
-   *   2. If no user found → 400 Bad Request ("Invalid or expired reset code").
-   *      We never reveal whether the code was wrong vs expired — same wording.
-   *
-   *   3. UserService.resetPassword() hashes the new password, updates the DB,
-   *      and clears resetPasswordHash + resetPasswordExpiry so the code cannot
-   *      be reused (replay attack prevention).
-   *
-   * After a successful reset the user must log in again with the new password.
-   * Existing sessions (active refresh tokens) are NOT revoked here. For stricter
-   * security, call clearRefreshToken() here too to log out all active devices.
-   */
   async resetPassword(body: ResetPasswordDto): Promise<{ message: string }> {
     const user: User | null = await this.userService.getUserByPasswordResetCode(
       body.code,
@@ -325,5 +209,33 @@ export class AuthService {
     }
 
     return { message: 'Password has been reset successfully.' };
+  }
+
+  async #generatePairOfTokens(
+    user: User,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const payload: JwtPayload = { sub: user.id, username: user.email };
+
+    // New short-lived access token — clients use this for API requests.
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>('JWT_SECRET'),
+      expiresIn: this.configService.get('JWT_EXPIRES_IN'),
+    });
+
+    // New long-lived refresh token — client stores this for the next refresh.
+    // Signed with a DIFFERENT secret than the access token.
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
+    });
+
+    // For testing purposes (production would parse JWT_REFRESH_EXPIRES_IN as days)
+    const minutes = 2;
+    const expiry = new Date(Date.now() + minutes * 60 * 1000);
+
+    // Overwrite the stored hash — old refresh token is now invalid (rotation).
+    await this.userService.saveRefreshToken(user.id, refreshToken, expiry);
+
+    return { accessToken, refreshToken };
   }
 }

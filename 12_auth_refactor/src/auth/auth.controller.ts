@@ -1,8 +1,17 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -19,6 +28,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import type { AuthUser } from './types/auth-user';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { LocalAuthGuard } from './guards/local.guard';
 
 /**
  * AuthController — HTTP entry point for all authentication endpoints.
@@ -92,11 +102,13 @@ export class AuthController {
   @ApiBadRequestResponse({
     description: 'Invalid credentials.',
   })
+  @ApiBody({ type: LoginDto })
   @HttpCode(HttpStatus.OK)
   @Public()
+  @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@Body() credentials: LoginDto) {
-    return this.authService.login(credentials);
+  login(@Req() req: { user: User }) {
+    return this.authService.login(req.user);
   }
 
   /**
