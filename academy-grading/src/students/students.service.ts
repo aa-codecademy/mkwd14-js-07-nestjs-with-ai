@@ -12,6 +12,10 @@ export class StudentsService {
   ) {}
 
   async create(createStudentDto: CreateStudentDto) {
+    // Explicit duplicate check before insert. The schema already has unique:true on
+    // email, so MongoDB would throw an E11000 duplicate key error on its own — but
+    // catching that raw driver error and mapping it to a clean 409 ConflictException
+    // here gives the API consumer a predictable, readable error response.
     const exists = await this.studentModel.findOne({
       email: createStudentDto.email,
     });
@@ -29,6 +33,8 @@ export class StudentsService {
     return this.studentModel.find();
   }
 
+  // findOne with { _id: id } — Mongoose automatically casts the string id to
+  // ObjectId before querying, so no manual `new Types.ObjectId(id)` is needed.
   findOne(id: string): Promise<any> {
     return this.studentModel.findOne({ _id: id });
   }

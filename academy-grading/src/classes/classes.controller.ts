@@ -65,6 +65,10 @@ export class ClassesController {
       description: 'Advanced JavaScript concepts and best practices',
     },
   })
+  // ParseObjectIdPipe (from @nestjs/mongoose) validates that the :id route
+  // parameter is a valid 24-character hex MongoDB ObjectId before the handler runs.
+  // If the string is not a valid ObjectId it throws a BadRequestException (400)
+  // immediately, preventing a malformed id from ever reaching the service/database.
   async remove(@Param('id', ParseObjectIdPipe) id: string): Promise<void> {
     await this.classesService.remove(id);
   }

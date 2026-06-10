@@ -9,6 +9,9 @@ export class Homework {
   @Prop({ trim: true })
   description!: string;
 
+  // References the Class collection via an ObjectId. Storing only the _id keeps
+  // the document small; call .populate('class') in a query to join the full Class
+  // document when needed without duplicating data across collections.
   @Prop({ type: Types.ObjectId, ref: 'Class', required: true })
   class!: Types.ObjectId;
 }
