@@ -1,21 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { CreateClassDto } from './dto/create-class.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Class, type ClassDocument } from './schemas/class.schema';
+import type { Model } from 'mongoose';
 
 @Injectable()
 export class ClassesService {
-  create(createClassDto: CreateClassDto) {
-    return 'This action adds a new class';
+  constructor(
+    @InjectModel(Class.name) private readonly classModel: Model<ClassDocument>,
+  ) {}
+
+  create(createClassDto: CreateClassDto): Promise<ClassDocument> {
+    return this.classModel.create(createClassDto);
   }
 
-  findAll() {
-    return `This action returns all classes`;
+  findAll(): Promise<ClassDocument[]> {
+    return this.classModel.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} class`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} class`;
+  remove(id: string) {
+    return this.classModel.findOneAndDelete({ _id: id });
   }
 }

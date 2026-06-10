@@ -1,6 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
-import { UpdateStudentDto } from './dto/update-student.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Student, type StudentDocument } from './schemas/student.schema';
 import type { Model } from 'mongoose';
@@ -34,11 +33,7 @@ export class StudentsService {
     return this.studentModel.findOne({ _id: id });
   }
 
-  update(id: number, updateStudentDto: UpdateStudentDto) {
-    return `This action updates a #${id} student`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} student`;
+  async remove(id: string): Promise<void> {
+    await this.studentModel.findOneAndDelete({ _id: id });
   }
 }
