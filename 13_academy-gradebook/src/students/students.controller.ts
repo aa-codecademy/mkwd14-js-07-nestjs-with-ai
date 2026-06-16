@@ -4,11 +4,18 @@ import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 
+// @ApiTags groups all routes in this controller under a 'Students' section in Swagger UI.
+// @Controller('students') sets the base path — all routes here start with /api/students.
 @ApiTags('Students')
 @Controller('students')
 export class StudentsController {
+  // NestJS injects StudentsService automatically via the constructor (Dependency Injection).
+  // The 'private readonly' shorthand declares and assigns the property in one step.
   constructor(private readonly studentsService: StudentsService) {}
 
+  // @Post() maps this handler to POST /api/students.
+  // @Body() extracts the JSON request body and transforms it into a CreateStudentDto
+  // instance — class-validator then runs all the @Is* decorators on that DTO.
   @Post()
   @ApiOperation({ summary: 'Create a new student' })
   @ApiResponse({
@@ -26,6 +33,7 @@ export class StudentsController {
     return this.studentsService.create(createStudentDto);
   }
 
+  // @Get() with no argument maps to GET /api/students — returns all students.
   @Get()
   @ApiOperation({ summary: 'Retrieve all students' })
   @ApiResponse({
@@ -45,6 +53,9 @@ export class StudentsController {
     return this.studentsService.findAll();
   }
 
+  // @Get(':id') maps to GET /api/students/:id — the :id segment is a route parameter.
+  // @Param('id', ParseObjectIdPipe) extracts the :id string from the URL and passes it
+  // through ParseObjectIdPipe first — the pipe throws 400 if it isn't a valid ObjectId.
   @Get(':id')
   @ApiOperation({ summary: 'Retrieve a student by ID' })
   @ApiParam({
@@ -71,6 +82,9 @@ export class StudentsController {
     return this.studentsService.findOne(id);
   }
 
+  // @Delete(':id') maps to DELETE /api/students/:id.
+  // ParseObjectIdPipe validates the id before the handler runs — invalid ids never
+  // reach the service or database.
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a student by ID' })
   @ApiParam({

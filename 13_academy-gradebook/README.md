@@ -403,7 +403,7 @@ bodies, and **`ValidationPipe`** to enforce those shapes automatically.
 
 ### How It Works
 
-```
+```text
 Incoming HTTP request body (JSON string)
   ↓  class-transformer: parse & instantiate DTO class
   ↓  class-validator: run @Is* decorator validators
@@ -478,7 +478,7 @@ An interceptor is a class decorated with `@Injectable()` that implements
 
 ### Execution Order
 
-```
+```text
 Client Request
   → Middleware
   → Guards
@@ -633,7 +633,7 @@ findOne(@Param('id', ParseIntPipe) id: number) {}
 
 ## Project Structure
 
-```
+```text
 academy-grading/
 ├── src/
 │   ├── main.ts                          # Bootstrap: pipes, interceptors, Swagger
@@ -647,32 +647,32 @@ academy-grading/
 │   │
 │   ├── classes/
 │   │   ├── schemas/class.schema.ts      # @Schema + @Prop → Mongoose schema
-│   │   ├── types/class.ts               # ClassName enum
+│   │   ├── types/class.ts               # ClassName enum (allowed class names)
 │   │   ├── dto/create-class.dto.ts      # Validated request body shape
 │   │   ├── classes.module.ts            # MongooseModule.forFeature registration
 │   │   ├── classes.service.ts           # @InjectModel + Mongoose queries
 │   │   └── classes.controller.ts        # HTTP routes
 │   │
 │   ├── students/
-│   │   ├── schemas/student.schema.ts
-│   │   ├── dto/create-student.dto.ts
+│   │   ├── schemas/student.schema.ts    # unique + lowercase email index
+│   │   ├── dto/create-student.dto.ts    # @IsEmail, @IsPhoneNumber validation
 │   │   ├── students.module.ts
-│   │   ├── students.service.ts
+│   │   ├── students.service.ts          # Duplicate email check → ConflictException
 │   │   └── students.controller.ts
 │   │
 │   ├── homeworks/
-│   │   ├── schemas/homework.schema.ts   # References Class via ObjectId
-│   │   ├── dto/
-│   │   ├── homeworks.module.ts
-│   │   ├── homeworks.service.ts
-│   │   └── homeworks.controller.ts
+│   │   ├── schemas/homework.schema.ts   # References Class via ObjectId + ref
+│   │   ├── dto/create-homework.dto.ts   # @IsMongoId validates class reference format
+│   │   ├── homeworks.module.ts          # Imports ClassesModule for cross-module DI
+│   │   ├── homeworks.service.ts         # Validates class exists; uses .populate()
+│   │   └── homeworks.controller.ts      # GET /class/:id sub-resource route
 │   │
 │   └── grades/
 │       ├── schemas/grade.schema.ts      # References Student + Homework via ObjectId
-│       ├── dto/
-│       ├── grades.module.ts
-│       ├── grades.service.ts
-│       └── grades.controller.ts
+│       ├── dto/create-grade.dto.ts      # Dual validation: DTO + schema min/max
+│       ├── grades.module.ts             # Imports StudentsModule + HomeworksModule
+│       ├── grades.service.ts            # Validates both refs; prevents duplicates
+│       └── grades.controller.ts         # Implemented + stub endpoints for exercises
 │
 ├── public/                              # Static files served at root URL
 ├── test/                                # E2E tests
@@ -682,13 +682,103 @@ academy-grading/
 
 ### Data Model Relationships
 
-```
+```text
 Class ──< Homework ──< Grade >── Student
 ```
 
 - A **Class** has many **Homeworks** (Homework stores a `class` ObjectId)
 - A **Homework** has many **Grades** (Grade stores a `homework` ObjectId)
 - A **Student** has many **Grades** (Grade stores a `student` ObjectId)
+
+### Cross-Module Dependencies
+
+NestJS modules are isolated by default — a service from one module cannot be injected
+into another unless it is explicitly exported and the consumer imports the module.
+
+```text
+GradesModule
+  imports StudentsModule  → injects StudentsService  (verify student exists)
+  imports HomeworksModule → injects HomeworksService (verify homework exists)
+
+HomeworksModule
+  imports ClassesModule   → injects ClassesService   (verify class exists)
+```
+
+This is how the application enforces referential integrity without foreign key
+constraints — at the application layer, before any DB write.
+
+---
+
+## API Endpoints
+
+All routes are prefixed with `/api`. Visit `/docs` for the interactive Swagger UI.
+
+### Classes
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/classes` | Create a new class (name must match `ClassName` enum) |
+| `GET` | `/api/classes` | Return all classes |
+| `DELETE` | `/api/classes/:id` | Delete a class by MongoDB ObjectId |
+
+### Students
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/students` | Create a student (email must be unique) |
+| `GET` | `/api/students` | Return all students |
+| `GET` | `/api/students/:id` | Return one student by ID |
+| `DELETE` | `/api/students/:id` | Delete a student by ID |
+
+### Homeworks
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/homeworks` | Create a homework (validates class exists; returns with class populated) |
+| `GET` | `/api/homeworks` | Return all homeworks sorted newest-first (class populated) |
+| `GET` | `/api/homeworks/class/:id` | Return all homeworks for a specific class |
+| `DELETE` | `/api/homeworks/:id` | Delete a homework (returns 204 No Content) |
+
+### Grades
+
+| Method | Path | Description | Status |
+| --- | --- | --- | --- |
+| `POST` | `/api/grades` | Create a grade (validates student + homework; prevents duplicates) | ✅ Implemented |
+| `GET` | `/api/grades` | Return all grades (student + homework populated) | ✅ Implemented |
+| `GET` | `/api/grades/student/:id` | Return all grades for a student | 🔧 Exercise |
+| `GET` | `/api/grades/homework/:id` | Return all grades for a homework | 🔧 Exercise |
+| `GET` | `/api/grades/student/:id/average` | Return a student's average grade | 🔧 Exercise |
+| `DELETE` | `/api/grades/:id` | Delete a grade by ID | 🔧 Exercise |
+
+---
+
+## Student Exercises
+
+The following endpoints are stubbed in `grades.controller.ts` and need to be implemented
+in `grades.service.ts`. Each builds on patterns already used in the codebase.
+
+### Exercise 1 — `findByStudent(id)`
+
+Filter grades by `{ student: id }` and populate the `homework` field.
+Use `ParseObjectIdPipe` on the `:id` param (see `homeworks.controller.ts` for reference).
+
+### Exercise 2 — `findByHomework(id)`
+
+Filter grades by `{ homework: id }` and populate the `student` field.
+
+### Exercise 3 — `averageForStudent(id)`
+
+Calculate the mean `value` across all grades for a student. Two approaches:
+
+- **JavaScript**: fetch all grades with `findByStudent`, then use `Array.reduce()`.
+- **MongoDB aggregation**: use `gradeModel.aggregate()` with `$match` + `$group` + `$avg`.
+
+### Exercise 4 — `remove(id)`
+
+Replace the placeholder string return in `grades.service.ts` with a real
+`gradeModel.findByIdAndDelete(id)` call (see `homeworks.service.ts` for reference).
+
+---
 
 ### Environment Variables (`.env`)
 
@@ -701,5 +791,5 @@ PORT=3000
 
 Once the server is running, visit:
 
-- **Swagger UI**: http://localhost:3000/docs
-- **OpenAPI JSON**: http://localhost:3000/docs-json
+- **Swagger UI**: [http://localhost:3000/docs](http://localhost:3000/docs)
+- **OpenAPI JSON**: [http://localhost:3000/docs-json](http://localhost:3000/docs-json)

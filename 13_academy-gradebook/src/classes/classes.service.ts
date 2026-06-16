@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateClassDto } from './dto/create-class.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Class, type ClassDocument } from './schemas/class.schema';
@@ -24,6 +24,16 @@ export class ClassesService {
   // Returns a Mongoose Query that resolves to an array of HydratedDocuments.
   findAll(): Promise<ClassDocument[]> {
     return this.classModel.find();
+  }
+
+  async findOne(id: string): Promise<ClassDocument> {
+    const cls = await this.classModel.findById(id).exec();
+
+    if (!cls) {
+      throw new NotFoundException(`Class with ID: ${id} doesn't exist`);
+    }
+
+    return cls;
   }
 
   // findOneAndDelete() atomically finds the matching document and removes it,

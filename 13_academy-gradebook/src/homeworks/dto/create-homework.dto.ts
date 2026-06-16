@@ -26,6 +26,11 @@ export class CreateHomeworkDto {
   @MaxLength(1000)
   description?: string;
 
+  // @IsMongoId() validates that the value is a 24-character hexadecimal string —
+  // the string representation of a MongoDB ObjectId. This catches typos before the
+  // request ever reaches the service or database. Note: it only validates format,
+  // not existence — the service calls classService.findOne() to confirm the class
+  // actually exists in the database.
   @ApiProperty({
     description: 'MongoDB ObjectId of the associated class',
     example: '507f1f77bcf86cd799439011',

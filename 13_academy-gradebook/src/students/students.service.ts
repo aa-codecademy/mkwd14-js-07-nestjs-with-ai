@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Student, type StudentDocument } from './schemas/student.schema';
@@ -33,10 +37,14 @@ export class StudentsService {
     return this.studentModel.find();
   }
 
-  // findOne with { _id: id } — Mongoose automatically casts the string id to
-  // ObjectId before querying, so no manual `new Types.ObjectId(id)` is needed.
-  findOne(id: string): Promise<any> {
-    return this.studentModel.findOne({ _id: id });
+  async findOne(id: string): Promise<StudentDocument> {
+    const student = await this.studentModel.findOne({ _id: id });
+
+    if (!student) {
+      throw new NotFoundException(`Student with ID: ${id} is not found`);
+    }
+
+    return student;
   }
 
   async remove(id: string): Promise<void> {
