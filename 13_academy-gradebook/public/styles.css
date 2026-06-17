@@ -112,6 +112,10 @@ form button[type=submit] {
 }
 form button[type=submit]:hover { background: var(--primary-dark); }
 
+/* ── Search bar ── */
+.search-bar { margin-bottom: 12px; }
+.search-bar input { width: 100%; box-sizing: border-box; }
+
 /* ── Entity list ── */
 .entity-list { list-style: none; display: flex; flex-direction: column; gap: 8px; padding: 0; margin: 0; }
 

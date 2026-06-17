@@ -1,201 +1,162 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Academy Gradebook</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <header>
-      <h1>🎓 Academy Gradebook</h1>
-      <nav>
-        <button class="nav-btn active" data-tab="students">Students</button>
-        <button class="nav-btn" data-tab="classes">Classes</button>
-        <button class="nav-btn" data-tab="homeworks">Homeworks</button>
-        <button class="nav-btn" data-tab="grades">Grades</button>
-        <button class="nav-btn" data-tab="reports">Reports</button>
-      </nav>
-      <div class="auth-bar" id="auth-bar"></div>
-    </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Academy Gradebook</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>🎓 Academy Gradebook</h1>
+    <nav>
+      <button class="nav-btn active" data-tab="students">Students</button>
+      <button class="nav-btn" data-tab="classes">Classes</button>
+      <button class="nav-btn" data-tab="homeworks">Homeworks</button>
+      <button class="nav-btn" data-tab="grades">Grades</button>
+      <button class="nav-btn" data-tab="reports">Reports</button>
+    </nav>
+    <div class="auth-bar" id="auth-bar"></div>
+  </header>
 
-    <main>
-      <!-- ─── STUDENTS ─── -->
-      <section id="tab-students" class="tab active">
-        <div class="panel">
-          <h2>Add Student</h2>
-          <form id="form-student">
-            <input name="firstName" placeholder="First name" required />
-            <input name="lastName" placeholder="Last name" required />
-            <input name="email" type="email" placeholder="Email" required />
-            <button type="submit">Add</button>
-          </form>
-        </div>
-        <div class="panel">
-          <h2>
-            Students <button class="refresh-btn" data-list="students">↻</button>
-          </h2>
-          <ul id="list-students" class="entity-list"></ul>
-        </div>
-      </section>
+  <main>
 
-      <!-- ─── CLASSES ─── -->
-      <section id="tab-classes" class="tab">
-        <div class="panel">
-          <h2>Add Class</h2>
-          <form id="form-class">
-            <select name="name" required>
-              <option value="">— Select class —</option>
-              <option>Node JS</option>
-              <option>PostgreSQL</option>
-              <option>Nest JS</option>
-              <option>React</option>
-              <option>Angular</option>
-              <option>Elective</option>
-            </select>
-            <input name="description" placeholder="Description (optional)" />
-            <button type="submit">Add</button>
-          </form>
-        </div>
-        <div class="panel">
-          <h2>
-            Classes <button class="refresh-btn" data-list="classes">↻</button>
-          </h2>
-          <ul id="list-classes" class="entity-list"></ul>
-        </div>
-      </section>
-
-      <!-- ─── HOMEWORKS ─── -->
-      <section id="tab-homeworks" class="tab">
-        <div class="panel">
-          <h2>Add Homework</h2>
-          <form id="form-homework">
-            <select name="class" required>
-              <option value="">— Select class —</option>
-            </select>
-            <input name="title" placeholder="Title" required />
-            <input name="description" placeholder="Description (optional)" />
-            <button type="submit">Add</button>
-          </form>
-        </div>
-        <div class="panel">
-          <h2>
-            Homeworks
-            <button class="refresh-btn" data-list="homeworks">↻</button>
-          </h2>
-          <ul id="list-homeworks" class="entity-list"></ul>
-        </div>
-      </section>
-
-      <!-- ─── GRADES ─── -->
-      <section id="tab-grades" class="tab">
-        <div class="panel">
-          <h2>
-            Add Grade
-            <span class="lock-badge" id="lock-badge" title="Login to add grades"
-              >🔒</span
-            >
-          </h2>
-          <form id="form-grade">
-            <select name="student" required>
-              <option value="">— Select student —</option>
-            </select>
-            <select name="homework" required>
-              <option value="">— Select homework —</option>
-            </select>
-            <input
-              name="value"
-              type="number"
-              min="1"
-              max="10"
-              placeholder="Grade (1–10)"
-              required
-            />
-            <input name="notes" placeholder="Notes (optional)" />
-            <button type="submit" id="btn-add-grade">Add Grade</button>
-          </form>
-        </div>
-        <div class="panel">
-          <h2>
-            All Grades <button class="refresh-btn" data-list="grades">↻</button>
-          </h2>
-          <ul id="list-grades" class="entity-list"></ul>
-        </div>
-      </section>
-
-      <!-- ─── REPORTS ─── -->
-      <section id="tab-reports" class="tab">
-        <!-- Student report card -->
-        <div class="panel">
-          <div class="report-header">
-            <div>
-              <h2>Student Report</h2>
-              <p class="report-desc">
-                All grades for a student across every homework
-              </p>
-            </div>
-            <select id="rpt-student-select" class="report-select">
-              <option value="">— Select student —</option>
-            </select>
-          </div>
-          <div id="rpt-student-result" class="report-body">
-            <p class="report-placeholder">
-              Select a student to view their report
-            </p>
-          </div>
-        </div>
-
-        <!-- Homework leaderboard -->
-        <div class="panel">
-          <div class="report-header">
-            <div>
-              <h2>Homework Leaderboard</h2>
-              <p class="report-desc">
-                All student grades for a specific homework, ranked
-              </p>
-            </div>
-            <select id="rpt-homework-select" class="report-select">
-              <option value="">— Select homework —</option>
-            </select>
-          </div>
-          <div id="rpt-homework-result" class="report-body">
-            <p class="report-placeholder">
-              Select a homework to view the leaderboard
-            </p>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <!-- Login modal -->
-    <div id="modal-overlay" class="modal-overlay hidden">
-      <div class="modal">
-        <h2>Trainer Login</h2>
-        <form id="form-login">
-          <input
-            name="username"
-            placeholder="Username"
-            required
-            autocomplete="username"
-          />
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            required
-            autocomplete="current-password"
-          />
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-login" class="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit">Login</button>
-          </div>
+    <!-- ─── STUDENTS ─── -->
+    <section id="tab-students" class="tab active">
+      <div class="panel">
+        <h2>Add Student</h2>
+        <form id="form-student">
+          <input name="firstName" placeholder="First name" required />
+          <input name="lastName" placeholder="Last name" required />
+          <input name="email" type="email" placeholder="Email" required />
+          <button type="submit">Add</button>
         </form>
       </div>
-    </div>
+      <div class="panel">
+        <h2>Students <button class="refresh-btn" data-list="students">↻</button></h2>
+        <div class="search-bar">
+          <input id="search-students" type="search" placeholder="Search by name…" />
+        </div>
+        <ul id="list-students" class="entity-list"></ul>
+      </div>
+    </section>
 
-    <div id="toast" class="toast hidden"></div>
-    <script src="/app.js"></script>
-  </body>
+    <!-- ─── CLASSES ─── -->
+    <section id="tab-classes" class="tab">
+      <div class="panel">
+        <h2>Add Class</h2>
+        <form id="form-class">
+          <select name="name" required>
+            <option value="">— Select class —</option>
+            <option>NestJS</option>
+            <option>NodeJS</option>
+            <option>PostgreSQL</option>
+            <option>React</option>
+            <option>Angular</option>
+            <option>Elective</option>
+          </select>
+          <input name="description" placeholder="Description (optional)" />
+          <button type="submit">Add</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Classes <button class="refresh-btn" data-list="classes">↻</button></h2>
+        <ul id="list-classes" class="entity-list"></ul>
+      </div>
+    </section>
+
+    <!-- ─── HOMEWORKS ─── -->
+    <section id="tab-homeworks" class="tab">
+      <div class="panel">
+        <h2>Add Homework</h2>
+        <form id="form-homework">
+          <select name="class" required>
+            <option value="">— Select class —</option>
+          </select>
+          <input name="title" placeholder="Title" required />
+          <input name="description" placeholder="Description (optional)" />
+          <button type="submit">Add</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Homeworks <button class="refresh-btn" data-list="homeworks">↻</button></h2>
+        <ul id="list-homeworks" class="entity-list"></ul>
+      </div>
+    </section>
+
+    <!-- ─── GRADES ─── -->
+    <section id="tab-grades" class="tab">
+      <div class="panel">
+        <h2>Add Grade <span class="lock-badge" id="lock-badge" title="Login to add grades">🔒</span></h2>
+        <form id="form-grade">
+          <select name="student" required><option value="">— Select student —</option></select>
+          <select name="homework" required><option value="">— Select homework —</option></select>
+          <input name="value" type="number" min="1" max="10" placeholder="Grade (1–10)" required />
+          <input name="notes" placeholder="Notes (optional)" />
+          <button type="submit" id="btn-add-grade">Add Grade</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>All Grades <button class="refresh-btn" data-list="grades">↻</button></h2>
+        <ul id="list-grades" class="entity-list"></ul>
+      </div>
+    </section>
+
+    <!-- ─── REPORTS ─── -->
+    <section id="tab-reports" class="tab">
+
+      <!-- Student report card -->
+      <div class="panel">
+        <div class="report-header">
+          <div>
+            <h2>Student Report</h2>
+            <p class="report-desc">All grades for a student across every homework</p>
+          </div>
+          <select id="rpt-student-select" class="report-select">
+            <option value="">— Select student —</option>
+          </select>
+        </div>
+        <div id="rpt-student-result" class="report-body">
+          <p class="report-placeholder">Select a student to view their report</p>
+        </div>
+      </div>
+
+      <!-- Homework leaderboard -->
+      <div class="panel">
+        <div class="report-header">
+          <div>
+            <h2>Homework Leaderboard</h2>
+            <p class="report-desc">All student grades for a specific homework, ranked</p>
+          </div>
+          <select id="rpt-homework-select" class="report-select">
+            <option value="">— Select homework —</option>
+          </select>
+        </div>
+        <div id="rpt-homework-result" class="report-body">
+          <p class="report-placeholder">Select a homework to view the leaderboard</p>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Login modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Trainer Login</h2>
+      <form id="form-login">
+        <input name="username" placeholder="Username" required autocomplete="username" />
+        <input name="password" type="password" placeholder="Password" required autocomplete="current-password" />
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-login" class="btn-secondary">Cancel</button>
+          <button type="submit">Login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
 </html>

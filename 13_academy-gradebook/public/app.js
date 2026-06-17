@@ -119,23 +119,27 @@ document.querySelectorAll('.refresh-btn').forEach((btn) => {
 
 // ── Students ─────────────────────────────────────────────────────────────────
 
-async function loadStudents() {
+function renderStudentList(students) {
   const list = document.getElementById('list-students');
+  list.innerHTML = students.length
+    ? students.map((s) => `
+        <li>
+          <div class="info">
+            <strong>${s.firstName} ${s.lastName}</strong>
+            <span>${s.email}</span>
+          </div>
+          <div class="actions">
+            <button class="btn-delete" data-id="${s._id}" data-type="students">Delete</button>
+          </div>
+        </li>`).join('')
+    : '<li class="empty">No students found.</li>';
+  attachDeleteHandlers(list);
+}
+
+async function loadStudents() {
   try {
     const students = await api('GET', '/students');
-    list.innerHTML = students.length
-      ? students.map((s) => `
-          <li>
-            <div class="info">
-              <strong>${s.firstName} ${s.lastName}</strong>
-              <span>${s.email}</span>
-            </div>
-            <div class="actions">
-              <button class="btn-delete" data-id="${s._id}" data-type="students">Delete</button>
-            </div>
-          </li>`).join('')
-      : '<li class="empty">No students yet.</li>';
-    attachDeleteHandlers(list);
+    renderStudentList(students);
     populateSelect('grade', 'student', students, (s) => `${s.firstName} ${s.lastName}`);
     populateById('rpt-student-select', students, (s) => `${s.firstName} ${s.lastName}`);
   } catch (e) { toast(e.message, true); }
@@ -147,8 +151,21 @@ document.getElementById('form-student').addEventListener('submit', async (e) => 
     await api('POST', '/students', formData(e.target));
     toast('Student added');
     e.target.reset();
+    document.getElementById('search-students').value = '';
     loadStudents();
   } catch (err) { toast(err.message, true); }
+});
+
+let searchTimer;
+document.getElementById('search-students').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  const name = e.target.value.trim();
+  searchTimer = setTimeout(async () => {
+    try {
+      const students = await api('GET', name ? `/students/search?name=${encodeURIComponent(name)}` : '/students');
+      renderStudentList(students);
+    } catch (err) { toast(err.message, true); }
+  }, 300);
 });
 
 // ── Classes ───────────────────────────────────────────────────────────────────
