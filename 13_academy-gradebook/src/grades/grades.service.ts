@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Grade, type GradeDocument } from './schemas/grade.schema';
 import type { Model } from 'mongoose';
@@ -58,6 +62,45 @@ export class GradesService {
       .populate('student', 'firstName lastName email')
       .sort({ value: -1 })
       .exec();
+  }
+
+  async findByHomework(id: Types.ObjectId) {
+    await this.homeworksService.findOne(id.toString());
+
+    return this.gradeModel
+      .find({ homework: id.toString() })
+      .populate('student', 'firstName lastName email')
+      .sort({ value: -1 })
+      .exec();
+  }
+
+  async averageForStudent(id: Types.ObjectId) {
+    await this.studentsService.findOne(id.toString());
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const [result] = await this.gradeModel.aggregate([
+      { $match: { student: id.toString() } },
+      {
+        $group: {
+          _id: '$student',
+          average: { $avg: '$value' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    console.log('🚀 ~ GradesService ~ averageForStudent ~ result:', result);
+
+    if (!result) {
+      throw new NotFoundException('Issue while getting student report');
+    }
+
+    return {
+      studentId: id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      average: result.average ? Math.round(result.average * 100) / 100 : 0,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      count: result.count ? result.count : 0,
+    };
   }
 
   async remove(id: string): Promise<void> {

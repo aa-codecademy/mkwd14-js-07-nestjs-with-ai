@@ -53,15 +53,31 @@ export class GradesController {
   // GET /api/grades/homework/:id — return all grades for a given homework.
   // Hint: filter gradeModel by { homework: id } and populate 'student'.
   @Get('homework/:id')
+  @ApiParam({
+    name: 'id',
+    description: 'The MongoDB ObjectId of the homework',
+    example: '507f1f77bcf86cd799439011',
+    type: String,
+  })
   @ApiOkResponse({ description: 'Return grades for a homework' })
-  findByHomework() {}
+  findByHomework(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+    return this.gradesService.findByHomework(id);
+  }
 
   // GET /api/grades/student/:id/average — return the average grade value for a student.
   // Hint: use MongoDB aggregation ($match + $group with $avg) or fetch all grades and
   // calculate the average in JavaScript using Array.reduce().
   @Get('student/:id/average')
   @ApiOkResponse({ description: 'Return average grade for a student' })
-  averageForStudent() {}
+  @ApiParam({
+    name: 'id',
+    description: 'The MongoDB ObjectId of the student',
+    example: '507f1f77bcf86cd799439011',
+    type: String,
+  })
+  averageForStudent(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+    return this.gradesService.averageForStudent(id);
+  }
 
   // DELETE /api/grades/:id — the +id converts the string param to a number.
   // NOTE: This is a placeholder — the service currently returns a string.
