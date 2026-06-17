@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -16,6 +17,10 @@ export class StudentsService {
   ) {}
 
   async create(createStudentDto: CreateStudentDto) {
+    // if (!createStudentDto.email.includes('avenga.mk')) {
+    //   throw new BadRequestException('Email must include avenga.mk domain');
+    // }
+
     // Explicit duplicate check before insert. The schema already has unique:true on
     // email, so MongoDB would throw an E11000 duplicate key error on its own — but
     // catching that raw driver error and mapping it to a clean 409 ConflictException
@@ -35,6 +40,16 @@ export class StudentsService {
 
   findAll() {
     return this.studentModel.find();
+  }
+
+  search(name: string): Promise<StudentDocument[]> {
+    const regex = new RegExp(name, 'i');
+    return this.studentModel
+      .find({
+        $or: [{ firstName: regex }, { lastName: regex }],
+      })
+      .sort({ lastName: 1, firstName: 1 })
+      .exec();
   }
 
   async findOne(id: string): Promise<StudentDocument> {

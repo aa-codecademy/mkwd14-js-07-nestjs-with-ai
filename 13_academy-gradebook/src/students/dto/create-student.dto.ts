@@ -7,6 +7,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsAvengaEmail } from '../../common/validators/email-domain.validator';
 
 // A DTO (Data Transfer Object) defines the exact shape of data expected in a request body.
 // class-validator decorators (@IsString, @IsEmail, etc.) run at the HTTP layer via
@@ -40,9 +41,10 @@ export class CreateStudentDto {
   // @IsEmail() validates the RFC 5322 email format (user@domain.tld).
   @ApiProperty({
     description: 'The email address of the student',
-    example: 'john.doe@example.com',
+    example: 'john.doe@avenga.mk',
   })
   @IsEmail()
+  @IsAvengaEmail()
   email!: string;
 
   // @IsOptional() tells class-validator to skip all following decorators if the field

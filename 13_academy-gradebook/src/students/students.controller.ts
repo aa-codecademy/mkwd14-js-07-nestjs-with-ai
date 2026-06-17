@@ -1,8 +1,23 @@
-import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { TrimStringPipe } from '../common/pipes/trim-string.pipe';
 
 // @ApiTags groups all routes in this controller under a 'Students' section in Swagger UI.
 // @Controller('students') sets the base path — all routes here start with /api/students.
@@ -51,6 +66,16 @@ export class StudentsController {
   })
   findAll() {
     return this.studentsService.findAll();
+  }
+
+  @Get('search')
+  @ApiQuery({
+    name: 'name',
+    description: 'Partial first or last name searching (whitespace is trimmed)',
+    example: '   Ana    ', // > 'Ana'
+  })
+  search(@Query('name', TrimStringPipe) name: string) {
+    return this.studentsService.search(name);
   }
 
   // @Get(':id') maps to GET /api/students/:id — the :id segment is a route parameter.

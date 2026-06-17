@@ -1,7 +1,15 @@
 import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
-import { ApiTags, ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { GradesService } from './grades.service';
 import { CreateGradeDto } from './dto/create-grade.dto';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import type { Types } from 'mongoose';
 
 @ApiTags('grades')
 @Controller('grades')
@@ -30,8 +38,17 @@ export class GradesController {
   // GET /api/grades/student/:id — return all grades for a given student.
   // Hint: filter gradeModel by { student: id } and populate 'homework'.
   @Get('student/:id')
+  @ApiOperation({ summary: 'Retrieve grades for a student' })
+  @ApiParam({
+    name: 'id',
+    description: 'The MongoDB ObjectId of the student',
+    example: '507f1f77bcf86cd799439011',
+    type: String,
+  })
   @ApiOkResponse({ description: 'Return grades for a student' })
-  findByStudent() {}
+  findByStudent(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+    return this.gradesService.findByStudent(id);
+  }
 
   // GET /api/grades/homework/:id — return all grades for a given homework.
   // Hint: filter gradeModel by { homework: id } and populate 'student'.
@@ -50,7 +67,7 @@ export class GradesController {
   // NOTE: This is a placeholder — the service currently returns a string.
   // Exercise: implement real deletion using gradeModel.findByIdAndDelete(id).
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.gradesService.remove(+id);
+  remove(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.gradesService.remove(id);
   }
 }

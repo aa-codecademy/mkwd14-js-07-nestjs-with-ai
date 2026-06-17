@@ -1,15 +1,11 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Grade, type GradeDocument } from './schemas/grade.schema';
 import type { Model } from 'mongoose';
 import { CreateGradeDto } from './dto/create-grade.dto';
-import { UpdateGradeDto } from './dto/update-grade.dto';
 import { StudentsService } from '../students/students.service';
 import { HomeworksService } from '../homeworks/homeworks.service';
+import type { Types } from 'mongoose';
 
 @Injectable()
 export class GradesService {
@@ -55,7 +51,16 @@ export class GradesService {
     return this.gradeModel.find().populate('homework student').exec();
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} grade`;
+  async findByStudent(id: Types.ObjectId) {
+    await this.studentsService.findOne(id.toString());
+    return this.gradeModel
+      .find({ student: id.toString() })
+      .populate('student', 'firstName lastName email')
+      .sort({ value: -1 })
+      .exec();
+  }
+
+  async remove(id: string): Promise<void> {
+    await this.gradeModel.findByIdAndDelete(id);
   }
 }

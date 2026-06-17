@@ -32,13 +32,15 @@ export class HomeworksService {
   }
 
   findAll(): Promise<HomeworkDocument[]> {
-    return this.homeworkModel
-      .find()
-      // Populate the 'class' reference on every returned document.
-      .populate('class', 'name description')
-      // sort({ createdAt: -1 }) orders results newest-first (-1 = descending).
-      // createdAt is auto-managed by Mongoose because the schema uses timestamps: true.
-      .sort({ createdAt: -1 });
+    return (
+      this.homeworkModel
+        .find()
+        // Populate the 'class' reference on every returned document.
+        .populate('class', 'name description')
+        // sort({ createdAt: -1 }) orders results newest-first (-1 = descending).
+        // createdAt is auto-managed by Mongoose because the schema uses timestamps: true.
+        .sort({ createdAt: -1 })
+    );
   }
 
   async findByClass(classId: Types.ObjectId): Promise<HomeworkDocument[]> {
